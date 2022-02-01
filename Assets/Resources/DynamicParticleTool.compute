@@ -1,0 +1,52 @@
+#include "Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel addParticleBlock
+#pragma kernel updateParticleCountArgment
+
+RWStructuredBuffer<int> ParticleCountArgment_RW;
+RWStructuredBuffer<VectorFloat> ParticlePosition_RW;
+RWStructuredBuffer<VectorFloat> ParticleVelocity_RW;
+RWStructuredBuffer<float> ParticleDensity_RW;
+
+VectorFloat WaterGeneratePos;
+uint WaterBlockResX;
+uint WaterBlockResY;
+uint WaterBlockResZ;
+uint AddedParticleCount;
+uint MaxParticleCount;
+float ParticleRadius;
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void addParticleBlock(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    int CurrParticleCount = ParticleCountArgment_RW[ParticleCountArgumentOffset];
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= AddedParticleCount || CurrParticleCount + i >= MaxParticleCount)
+        return;
+    
+#ifdef _2DWorld
+    uint y = i / WaterBlockResX;
+    uint x = i % WaterBlockResX;
+    ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + VectorFloat(x, y) * ParticleRadius * 2.0f;
+    ParticleVelocity_RW[CurrParticleCount + i] = VectorFloat(0, 0);
+#else
+    uint z = i / (WaterBlockResX * WaterBlockResY);
+    uint xp = i % (WaterBlockResX * WaterBlockResY);
+    uint y = xp / WaterBlockResX;
+    uint x = xp % WaterBlockResX;
+    ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + VectorFloat(x, y, z) * ParticleRadius * 2.0f;
+    ParticleVelocity_RW[CurrParticleCount + i] = VectorFloat(0, 0, 0);
+#endif
+    ParticleDensity_RW[CurrParticleCount + i] = 0.0f;
+}
+
+[numthreads(1, 1, 1)]
+void updateParticleCountArgment(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    int CurrParticleCount = ParticleCountArgment_RW[ParticleCountArgumentOffset];
+    int NewParticleCount =
+            MaxParticleCount <= (CurrParticleCount + (int) AddedParticleCount) ? MaxParticleCount : CurrParticleCount + (int) AddedParticleCount;
+    ParticleCountArgment_RW[ParticleCountArgumentOffset] = NewParticleCount;
+    ParticleCountArgment_RW[ParticleXGridCountArgumentOffset] = (int) ceil((float) NewParticleCount / SPH_THREAD_NUM);
+}
