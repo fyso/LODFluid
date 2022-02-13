@@ -8,9 +8,10 @@ namespace LODFluid
     {
         public uint SPHThreadSize = 512;
 
-        public Vector2Int SWPReolution = new Vector2Int(512, 512);
-        public Vector2 SWPMin = new Vector2(0, 0);
-        public float SWPParticleRadius = 0.25f;
+        public Vector2Int ShallowWaterReolution = new Vector2Int(512, 512);
+        public Vector2 ShallowWaterMin = new Vector2(0, 0);
+        public float ShallowWaterCellLength = 1.0f;
+        public float ShallowWaterParticleRadius = 0.25f;
 
         public uint Max3DParticleCount = 500000;
         public float Dynamic3DParticleRadius = 0.25f;

@@ -39,20 +39,24 @@ namespace LODFluid
 
     public class GPUResourceManager : Singleton<GPUResourceManager>
     {
-        public ParticleBuffer DynamicSWPParticle;
         public ParticleBuffer Dynamic3DParticle;
+        public ParticleBuffer DynamicSorted3DParticle;
+        public ComputeBuffer Temp3DParticleSortIndex;
         public GPUResourceManager()
         {
-            Vector2Int SWPRes = GPUGlobalParameterManager.GetInstance().SWPReolution;
-            DynamicSWPParticle = new ParticleBuffer(
-                (uint)SWPRes.x * (uint)SWPRes.y,
-                GPUGlobalParameterManager.GetInstance().SWPParticleRadius,
-                2);
+            Temp3DParticleSortIndex = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(uint));
 
             Dynamic3DParticle = new ParticleBuffer(
                 GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
                 3);
+        }
+
+        ~GPUResourceManager()
+        {
+            Temp3DParticleSortIndex.Release();
         }
     }
 }

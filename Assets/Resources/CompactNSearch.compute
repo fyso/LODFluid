@@ -6,7 +6,6 @@
 #pragma kernel recordHashGridCellParticleOffset
 #pragma kernel recordHashGridCellParticlCount
 
-
 VectorFloat HashGridMin;
 float HashGridCellLength;
 

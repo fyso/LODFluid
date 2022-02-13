@@ -23,9 +23,19 @@ namespace LODFluid
             recordHashGridCellParticlCount = CompactNSearchCS.FindKernel("recordHashGridCellParticlCount");
         }
 
-        public void ComputeZCodeOfParticle()
+        public void ComputeZCodeOfParticle(
+            ParticleBuffer vTarget,
+            ComputeBuffer vTempParticleIndex,
+            Vector3 vHashGridMin,
+            float vHashGridCellLength)
         {
+            CompactNSearchCS.SetFloats("HashGridMin", vHashGridMin.x, vHashGridMin.y, vHashGridMin.z);
+            CompactNSearchCS.SetFloat("HashGridCellLength", vHashGridCellLength);
+            CompactNSearchCS.SetBuffer(computeZCodeOfParticle, "ParticleIndrectArgment", vTarget.ParticleIndirectArgumentBuffer);
+            CompactNSearchCS.SetBuffer(computeZCodeOfParticle, "ParticleCellIndex_RW", vTarget.ParticleCellIndexBuffer);
+            CompactNSearchCS.SetBuffer(computeZCodeOfParticle, "ParticleIndex_RW", vTempParticleIndex);
 
+            CompactNSearchCS.DispatchIndirect(computeZCodeOfParticle, vTarget.ParticleIndirectArgumentBuffer, 0);
         }
     }
 }

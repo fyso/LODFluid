@@ -31,10 +31,10 @@ namespace LODFluid
 
         void OnRenderObject()
         {
-            //TODO：不知为何，DrawProceduralIndirectNow不起作用
-            uint[] ParticleIndirectArgumentCPU = new uint[7];
+            //TODO:DrawProceduralIndirectNow dont work
+            int[] ParticleIndirectArgumentCPU = new int[7];
             GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
-            if ((int)ParticleIndirectArgumentCPU[4] != 0)
+            if (ParticleIndirectArgumentCPU[4] != 0)
             {
                 SPHVisualMaterial.SetPass(0);
                 SPHVisualMaterial.SetBuffer("_particlePositionBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticlePositionBuffer);
