@@ -1,7 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
+using UnityEngine.Profiling;
 
 namespace LODFluid
 {
@@ -22,7 +20,8 @@ namespace LODFluid
                     WaterGenerateResolution);
             }
 
-            CompactNSearchInvoker.GetInstance().CountingSortFullKernel(
+            Profiler.BeginSample("CountingSort");
+            CompactNSearchInvoker.GetInstance().CountingSort(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
@@ -34,6 +33,7 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().ScanTempBuffer2,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength);
+            Profiler.EndSample();
         }
 
         void OnRenderObject()
