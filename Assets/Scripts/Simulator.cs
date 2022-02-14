@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
 
@@ -8,6 +9,7 @@ namespace LODFluid
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(64, 64, 64);
         public Material SPHVisualMaterial;
+        public List<GameObject> BoundaryObjects;
 
         void Update()
         {
@@ -34,6 +36,12 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength);
             Profiler.EndSample();
+
+            EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
+                    BoundaryObjects,
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer
+                );
         }
 
         void OnRenderObject()

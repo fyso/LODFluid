@@ -1,4 +1,4 @@
-#include "Common.hlsl"
+#include "../Common.hlsl"
 #define BUFFER_CLEAR_THRED_NUM 512
 #pragma kernel clearUIntBufferWithZero
 

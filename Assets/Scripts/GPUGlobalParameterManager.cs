@@ -15,8 +15,8 @@ namespace LODFluid
 
         public uint Max3DParticleCount = 500000;
         public float Dynamic3DParticleRadius = 0.25f;
-        public Vector3 SimualtionRangeMin = new Vector3(0, 0, 0);
-        public Vector3 SimualtionRangeMax = new Vector3(32, 32, 32);
+        public Vector3 SimualtionRangeMin = new Vector3(-16, -16, -16);
+        public Vector3 SimualtionRangeMax = new Vector3(16, 16, 16);
 
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }
         public float HashCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
