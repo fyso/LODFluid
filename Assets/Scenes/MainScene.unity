@@ -424,7 +424,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   WaterGeneratePosition: {x: 0, y: 0, z: 0}
-  WaterGenerateResolution: {x: 8, y: 64, z: 64}
+  WaterGenerateResolution: {x: 32, y: 32, z: 32}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
 --- !u!4 &1784697732
 Transform:

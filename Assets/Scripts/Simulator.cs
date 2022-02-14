@@ -11,37 +11,37 @@ namespace LODFluid
         public Vector3Int WaterGenerateResolution = new Vector3Int(64, 64, 64);
         public Material SPHVisualMaterial;
 
-        void Start()
-        {
-        }
-
         void Update()
         {
             if(Input.GetKeyDown(KeyCode.Space))
             {
-                DynamicParticleToolInvoker.GetInstance().AddParticleBlock3D(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle, 
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     WaterGeneratePosition,
                     WaterGenerateResolution);
-                DynamicParticleToolInvoker.GetInstance().UpdateParticleCountArgment(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
-                    WaterGenerateResolution.x * WaterGenerateResolution.y * WaterGenerateResolution.z);
             }
+
+            CompactNSearchInvoker.GetInstance().CountingSortFullKernel(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
+                    GPUResourceManager.GetInstance().ScanTempBuffer1,
+                    GPUResourceManager.GetInstance().ScanTempBuffer2,
+                    GPUGlobalParameterManager.GetInstance().HashGridMin,
+                    GPUGlobalParameterManager.GetInstance().HashCellLength);
         }
 
         void OnRenderObject()
         {
-            //TODO:DrawProceduralIndirectNow dont work
-            int[] ParticleIndirectArgumentCPU = new int[7];
-            GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
-            if (ParticleIndirectArgumentCPU[4] != 0)
-            {
-                SPHVisualMaterial.SetPass(0);
-                SPHVisualMaterial.SetBuffer("_particlePositionBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticlePositionBuffer);
-                SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleVelocityBuffer);
-                //Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleIndirectArgumentBuffer, 12);
-                Graphics.DrawProceduralNow(MeshTopology.Triangles, 3, (int)ParticleIndirectArgumentCPU[4]);
-            }
+            SPHVisualMaterial.SetPass(0);
+            SPHVisualMaterial.SetBuffer("_particlePositionBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticlePositionBuffer);
+            SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleVelocityBuffer);
+            Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer, 12);
         }
     }
 }

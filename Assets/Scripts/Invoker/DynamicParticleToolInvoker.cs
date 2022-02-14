@@ -16,8 +16,9 @@ namespace LODFluid
             UpdateParticleCountArgmentKernel = DynamicParticleToolCS.FindKernel("updateParticleCountArgment");
         }
 
-        public void AddParticleBlock3D(
+        public void AddParticleBlock(
             ParticleBuffer vTarget,
+            ComputeBuffer vParticleIndirectArgumentBuffer,
             Vector3 vWaterGeneratePos,
             Vector3Int vWaterBlockRes)
         {
@@ -29,46 +30,26 @@ namespace LODFluid
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
             DynamicParticleToolCS.SetInt("MaxParticleCount", (int)vTarget.MaxParticleSize);
             DynamicParticleToolCS.SetFloat("ParticleRadius", vTarget.ParticleRadius);
-
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleCountArgment_RW", vTarget.ParticleIndirectArgumentBuffer);
+            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleCountArgment_RW", vParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", vTarget.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", vTarget.ParticleVelocityBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleDensity_RW", vTarget.ParticleDensityBuffer);
-
             DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / GPUGlobalParameterManager.GetInstance().SPHThreadSize), 1, 1);
-        }
-
-        public void AddParticleBlock2D(
-            ParticleBuffer vTarget,
-            Vector2 vWaterGeneratePos,
-            Vector2Int vWaterBlockRes)
-        {
-            DynamicParticleToolCS.EnableKeyword("_2DWorld");
-            int AddedParticleCount = vWaterBlockRes.x * vWaterBlockRes.y;
-            DynamicParticleToolCS.SetFloats("WaterGeneratePos", vWaterGeneratePos.x, vWaterGeneratePos.y);
-            DynamicParticleToolCS.SetInt("WaterBlockResX", vWaterBlockRes.x);
-            DynamicParticleToolCS.SetInt("WaterBlockResY", vWaterBlockRes.y);
+            
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
             DynamicParticleToolCS.SetInt("MaxParticleCount", (int)vTarget.MaxParticleSize);
-            DynamicParticleToolCS.SetFloat("ParticleRadius", vTarget.ParticleRadius);
-
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleCountArgment_RW", vTarget.ParticleIndirectArgumentBuffer);
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", vTarget.ParticlePositionBuffer);
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", vTarget.ParticleVelocityBuffer);
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleDensity_RW", vTarget.ParticleDensityBuffer);
-
-            DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / GPUGlobalParameterManager.GetInstance().SPHThreadSize), 1, 1);
-        }  
-        public void UpdateParticleCountArgment(
-            ParticleBuffer vTarget,
-            int vAddedParticleCount)
-        {
-            DynamicParticleToolCS.SetInt("AddedParticleCount", vAddedParticleCount);
-            DynamicParticleToolCS.SetInt("MaxParticleCount", (int)vTarget.MaxParticleSize);
-
-            DynamicParticleToolCS.SetBuffer(UpdateParticleCountArgmentKernel, "ParticleCountArgment_RW", vTarget.ParticleIndirectArgumentBuffer);
-
+            DynamicParticleToolCS.SetBuffer(UpdateParticleCountArgmentKernel, "ParticleCountArgment_RW", vParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.Dispatch(UpdateParticleCountArgmentKernel, 1, 1, 1);
+        }
+
+        public void NarrowParticleData(
+            ParticleBuffer vTargetParticleBuffer,
+            ParticleBuffer vNarrowParticleBuffer,
+            ComputeBuffer vParticleIndirectArgumentBuffer,
+            ComputeBuffer vParticleFilterBuffer,
+            ComputeBuffer vParticleScatterOffsetCache)
+        {
+
         }
     }
 }

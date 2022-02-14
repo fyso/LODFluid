@@ -20,7 +20,6 @@ Shader "Unlit/SPHParticle"
 
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
-            //#include "Common.hlsl"
 
             float4x4 GetViewToHClipMatrix()
             {
@@ -56,24 +55,13 @@ Shader "Unlit/SPHParticle"
 
             uniform float _ParticleRadius;
 
-//#ifdef _2DWorld
-//            StructuredBuffer<float2> _particlePositionBuffer;
-//            StructuredBuffer<float2> _particleVelocityBuffer;
-//#else
             StructuredBuffer<float3> _particlePositionBuffer;
             StructuredBuffer<float3> _particleVelocityBuffer;
-//#endif
 
             Varyings GenerateDepthPassVertex(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
             {
                 Varyings result;
-                
-//#ifdef _2DWorld
-//                float3 positionWS = float3(_particlePositionBuffer[instanceID], 0.0f);
-//#else
                 float3 positionWS = _particlePositionBuffer[instanceID];
-//#endif
-
                 float3 sphereCenter = float4(TransformWorldToView(positionWS), 1.0f).xyz;
                 switch (vertexID)
                 {
@@ -90,13 +78,7 @@ Shader "Unlit/SPHParticle"
                         break;
                     }
                 result.positionCS = TransformWViewToHClip(sphereCenter + float3(_ParticleRadius * result.uv, 0.0f));
-
-//#ifdef _2DWorld
-//                float3 Velocity = float3(_particleVelocityBuffer[instanceID], 0.0f);
-//#else
                 float3 Velocity = _particleVelocityBuffer[instanceID];
-//#endif
-
                 float ClampVel = clamp(length(Velocity), 0.0f, 4.0f) / 4.0f;
                 result.col = float4(ClampVel, 1.0f, 1.0f, 1.0f);
                 return result;

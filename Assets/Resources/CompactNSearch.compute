@@ -1,30 +1,29 @@
 #include "Common.hlsl"
 
-#pragma kernel computeZCodeOfParticle
-#pragma kernel bitonicMergeSortParticleIndexByZCode
-#pragma kernel assignParticleDataByParticleIndex
-#pragma kernel recordHashGridCellParticleOffset
-#pragma kernel recordHashGridCellParticlCount
+#pragma enable_d3d11_debug_symbols
+#pragma kernel insertParticleIntoHashGrid
+#pragma kernel countingSortFull
 
-VectorFloat HashGridMin;
+float3 HashGridMin;
 float HashGridCellLength;
 
-StructuredBuffer<uint> ParticleIndrectArgment;
+StructuredBuffer<uint> ParticleIndrectArgment_R;
 
-StructuredBuffer<uint> ParticleIndex_R;
-RWStructuredBuffer<uint> ParticleIndex_RW;
+StructuredBuffer<float3> ParticlePosition_R;
+StructuredBuffer<float3> ParticleVelocity_R;
+StructuredBuffer<float> ParticleDensity_R;
 
-StructuredBuffer<VectorFloat> ParticlePosition_R;
-RWStructuredBuffer<VectorFloat> ParticlePosition_RW;
+RWStructuredBuffer<float3> SortedParticlePosition_RW;
+RWStructuredBuffer<float3> SortedParticleVelocity_RW;
+RWStructuredBuffer<float> SortedParticleDensity_RW;
+
+StructuredBuffer<uint> ParticleInnerSortIndex_R;
+RWStructuredBuffer<uint> ParticleInnerSortIndex_RW;
+
 StructuredBuffer<uint> ParticleCellIndex_R;
 RWStructuredBuffer<uint> ParticleCellIndex_RW;
 
-RWStructuredBuffer<VectorFloat> SortedParticlePosition_RW;
-StructuredBuffer<uint> SortedParticleCellIndex_R;
-RWStructuredBuffer<uint> SortedParticleCellIndex_RW;
-
 StructuredBuffer<uint> HashGridCellParticleOffset_R;
-RWStructuredBuffer<uint> HashGridCellParticleOffset_RW;
 RWStructuredBuffer<uint> HashGridCellParticleCount_RW;
 
 /* compute morton code */
@@ -38,118 +37,41 @@ uint expandBits3D(uint v)
     return v;
 }
 
-uint computeMorton3D(VectorUInt vCellIndex3D)
+uint computeMorton3D(uint3 vCellIndex3D)
 {
-#ifdef _2DWorld
-    return (expandBits3D(vCellIndex3D.y) << 1) + expandBits3D(vCellIndex3D.x);
-#else
     return (expandBits3D(vCellIndex3D.z) << 2) + (expandBits3D(vCellIndex3D.y) << 1) + expandBits3D(vCellIndex3D.x);
-#endif
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
-void computeZCodeOfParticle(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+void insertParticleIntoHashGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndrectArgment[ParticleCountArgumentOffset])
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
         return;
+	
+    float3 Postion = ParticlePosition_R[i];
+    uint3 Cell3DIndex = uint3((Postion - HashGridMin) / HashGridCellLength);
+    uint CellLinerIndex = computeMorton3D(Cell3DIndex);
+
+    ParticleCellIndex_RW[i] = CellLinerIndex;
     
-    VectorFloat CurrentParticlePosition = ParticlePosition_R[i];
-    VectorUInt Cell3DIndex = VectorUInt((CurrentParticlePosition - HashGridMin) / HashGridCellLength);
-    ParticleCellIndex_RW[i] = computeMorton3D(Cell3DIndex);
-    ParticleIndex_RW[i] = i;
-}
-
-/* bitonic merge sort particle data */
-groupshared uint local_value[SPH_THREAD_NUM];
-void local_compare_and_swap(int2 idx)
-{
-    if (local_value[idx.x] < local_value[idx.y])
-    {
-        uint tmp = local_value[idx.x];
-        local_value[idx.x] = local_value[idx.y];
-        local_value[idx.y] = tmp;
-    }
-}
-
-void do_flip(uint vThreadIdx, uint h)
-{
-    uint q = ((2 * vThreadIdx) / h) * h;
-    uint2 indices = q + uint2(vThreadIdx % h, h - (vThreadIdx % h));
-    local_compare_and_swap(indices);
-}
-
-void do_disperse(uint vThreadIdx, uint h)
-{
-    uint q = ((2 * vThreadIdx) / h) * h;
-    uint2 indices = q + uint2(vThreadIdx % h, (vThreadIdx % h) + (h / 2));
-    local_compare_and_swap(indices);
+    uint OriginValue;
+    InterlockedAdd(HashGridCellParticleCount_RW[CellLinerIndex], 1, OriginValue);
+    ParticleInnerSortIndex_RW[i] = OriginValue;
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
-void bitonicMergeSortParticleIndexByZCode(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
-{
-    local_value[ThreadIdx * 2] = ParticleIndex_RW[ThreadIdx * 2];
-    local_value[ThreadIdx * 2 + 1] = ParticleIndex_RW[ThreadIdx * 2 + 1];
- 
-    for (uint h = 2; h <= SPH_THREAD_NUM && h > 0; h /= 2)
-    {
-        GroupMemoryBarrierWithGroupSync();
-        do_flip(ThreadIdx, h);
-
-        for (uint hh = h / 2; hh > 1; hh /= 2)
-        {
-            GroupMemoryBarrierWithGroupSync();
-            do_disperse(ThreadIdx, hh);
-        }
-    }
-
-    GroupMemoryBarrierWithGroupSync();
-
-	// Write local memory back to buffer
-    ParticleIndex_RW[ThreadIdx * 2] = local_value[ThreadIdx * 2];
-    ParticleIndex_RW[ThreadIdx * 2 + 1] = local_value[ThreadIdx * 2 + 1];
-    
-}
-
-[numthreads(SPH_THREAD_NUM, 1, 1)]
-void assignParticleDataByParticleIndex(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+void countingSortFull(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndrectArgment[ParticleCountArgumentOffset])
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
         return;
     
-    int CurrentParticleTargetIndex = ParticleIndex_R[i];
-    SortedParticlePosition_RW[i] = ParticlePosition_R[CurrentParticleTargetIndex];
-    SortedParticleCellIndex_RW[i] = ParticleCellIndex_R[CurrentParticleTargetIndex];
-}
-
-/* record HashGridCell info */
-[numthreads(SPH_THREAD_NUM, 1, 1)]
-void recordHashGridCellParticleOffset(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
-{
-    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndrectArgment[ParticleCountArgumentOffset])
-        return;
-    
-    int CurrentParticleCellIndex = SortedParticleCellIndex_R[i];
-    int PrevParticleCellIndex = i == 0 ? CurrentParticleCellIndex : SortedParticleCellIndex_R[i - 1];
-    if (CurrentParticleCellIndex != PrevParticleCellIndex || i == 0)
-    {
-        HashGridCellParticleOffset_RW[CurrentParticleCellIndex] = i;
-    }
-}
-
-[numthreads(SPH_THREAD_NUM, 1, 1)]
-void recordHashGridCellParticlCount(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
-{
-    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    uint CurrentParticleCount = ParticleIndrectArgment[ParticleCountArgumentOffset];
-    if (i >= CurrentParticleCount)
-        return;
-    
-    uint CurrentParticleCellOffset = HashGridCellParticleOffset_R[i];
-    int CurrentParticleCellCount = i < CurrentParticleCount - 1 ? HashGridCellParticleOffset_R[i + 1] - CurrentParticleCellOffset : CurrentParticleCount - CurrentParticleCellOffset;
-    HashGridCellParticleCount_RW[i] = CurrentParticleCellCount;
-
+    uint CellLinerIndex = ParticleCellIndex_R[i];
+    uint Offset = CellLinerIndex == 0 ? 0 : HashGridCellParticleOffset_R[CellLinerIndex - 1];
+    uint Index = ParticleInnerSortIndex_R[i];
+    uint SortIndex = Offset + Index;
+    SortedParticlePosition_RW[SortIndex] = ParticlePosition_R[i];
+    SortedParticleVelocity_RW[SortIndex] = ParticleVelocity_R[i];
+    SortedParticleDensity_RW[SortIndex] = ParticleDensity_R[i];
 }

@@ -3,13 +3,25 @@
 #pragma enable_d3d11_debug_symbols
 #pragma kernel addParticleBlock
 #pragma kernel updateParticleCountArgment
+#pragma kernel scatterParticleData
 
 RWStructuredBuffer<int> ParticleCountArgment_RW;
-RWStructuredBuffer<VectorFloat> ParticlePosition_RW;
-RWStructuredBuffer<VectorFloat> ParticleVelocity_RW;
+RWStructuredBuffer<float3> ParticlePosition_RW;
+RWStructuredBuffer<float3> ParticleVelocity_RW;
 RWStructuredBuffer<float> ParticleDensity_RW;
 
-VectorFloat WaterGeneratePos;
+StructuredBuffer<float3> TargetParticlePosition_R;
+StructuredBuffer<float3> TargetParticleVelocity_R;
+StructuredBuffer<float> TargetParticleDensity_R;
+
+RWStructuredBuffer<float3> NarrowParticlePosition_RW;
+RWStructuredBuffer<float3> NarrowParticleVelocity_RW;
+RWStructuredBuffer<float> NarrowParticleDensity_RW;
+
+RWStructuredBuffer<uint> ParticleFilter_RW;
+StructuredBuffer<uint> ParticleScatterOffset_R;
+
+float3 WaterGeneratePos;
 uint WaterBlockResX;
 uint WaterBlockResY;
 uint WaterBlockResZ;
@@ -25,19 +37,12 @@ void addParticleBlock(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     if (i >= AddedParticleCount || CurrParticleCount + i >= MaxParticleCount)
         return;
     
-#ifdef _2DWorld
-    uint y = i / WaterBlockResX;
-    uint x = i % WaterBlockResX;
-    ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + VectorFloat(x, y) * ParticleRadius * 2.0f;
-    ParticleVelocity_RW[CurrParticleCount + i] = VectorFloat(0, 0);
-#else
     uint z = i / (WaterBlockResX * WaterBlockResY);
     uint xp = i % (WaterBlockResX * WaterBlockResY);
     uint y = xp / WaterBlockResX;
     uint x = xp % WaterBlockResX;
-    ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + VectorFloat(x, y, z) * ParticleRadius * 2.0f;
-    ParticleVelocity_RW[CurrParticleCount + i] = VectorFloat(0, 0, 0);
-#endif
+    ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + float3(x, y, z) * ParticleRadius * 2.0f;
+    ParticleVelocity_RW[CurrParticleCount + i] = float3(0, 0, 0);
     ParticleDensity_RW[CurrParticleCount + i] = 0.0f;
 }
 
@@ -49,4 +54,28 @@ void updateParticleCountArgment(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : 
             MaxParticleCount <= (CurrParticleCount + (int) AddedParticleCount) ? MaxParticleCount : CurrParticleCount + (int) AddedParticleCount;
     ParticleCountArgment_RW[ParticleCountArgumentOffset] = NewParticleCount;
     ParticleCountArgment_RW[ParticleXGridCountArgumentOffset] = (int) ceil((float) NewParticleCount / SPH_THREAD_NUM);
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void scatterParticleData(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleCountArgment_RW[ParticleCountArgumentOffset])
+        return;
+    
+    uint CurrTargetOffset = ParticleScatterOffset_R[i] - 1;
+    uint PrevTargetOffset = i == 0 ? 0 : ParticleScatterOffset_R[i - 1] - 1;
+    if (CurrTargetOffset != PrevTargetOffset)
+    {
+        NarrowParticlePosition_RW[CurrTargetOffset] = TargetParticlePosition_R[i];
+        NarrowParticleVelocity_RW[CurrTargetOffset] = TargetParticleVelocity_R[i];
+        NarrowParticleDensity_RW[CurrTargetOffset] = TargetParticleDensity_R[i];
+    }
+    
+    if (i == ParticleCountArgment_RW[ParticleCountArgumentOffset] - 1)
+    {
+        int NewParticleCount = CurrTargetOffset + 1;
+        ParticleCountArgment_RW[ParticleCountArgumentOffset] = NewParticleCount;
+        ParticleCountArgment_RW[ParticleXGridCountArgumentOffset] = (int) ceil((float) NewParticleCount / SPH_THREAD_NUM);
+    }
 }

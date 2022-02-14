@@ -1,0 +1,102 @@
+#pragma kernel scanInBucket
+#pragma kernel scanBucketResult
+#pragma kernel scanAddBucketResult
+
+StructuredBuffer<uint> Input : register(t0);
+StructuredBuffer<uint> Input1 : register(t1);
+RWStructuredBuffer<uint> Output : register(u0);
+
+#define SCAN_BLOCK_SIZE 512
+groupshared uint2 scanSharedMem[SCAN_BLOCK_SIZE];
+
+//local block scan ( up-down sweep ) 
+//reference https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda
+void scan(uint vGrobalIndex, uint vLocalIndex, uint vData)
+{
+    scanSharedMem[vLocalIndex].x = vData;
+    scanSharedMem[vLocalIndex].y = 0;
+    
+    uint Stride;
+    
+    //Up sweep ( reduction )
+    [unroll]
+    for (Stride = 2; Stride <= SCAN_BLOCK_SIZE; Stride <<= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        
+        if ((vLocalIndex & (Stride - 1)) == (Stride - 1)) // current Index is Stride * n
+        {
+            scanSharedMem[vLocalIndex].x += scanSharedMem[vLocalIndex - Stride / 2].x; // reduction
+        }
+    }
+    
+    //Down sweep ( reduction )
+    if (vLocalIndex == (SCAN_BLOCK_SIZE - 1))
+    {
+        scanSharedMem[vLocalIndex].x = 0;
+    }
+    bool PingPong = true;
+    for (Stride = SCAN_BLOCK_SIZE / 2; Stride >= 1; Stride >>= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        
+        uint a = Stride - 1;
+        uint b = Stride | a;
+        
+        if (PingPong)
+        {
+            if ((vLocalIndex & b) == b)
+            {
+                scanSharedMem[vLocalIndex].y = scanSharedMem[vLocalIndex - Stride].x + scanSharedMem[vLocalIndex].x;
+            }
+            else if ((vLocalIndex & a) == a)
+            {
+                scanSharedMem[vLocalIndex].y = scanSharedMem[vLocalIndex + Stride].x;
+            }
+            else
+            {
+                scanSharedMem[vLocalIndex].y = scanSharedMem[vLocalIndex].x;
+            }
+
+        }
+        else
+        {
+            if ((vLocalIndex & b) == b)
+            {
+                scanSharedMem[vLocalIndex].x = scanSharedMem[vLocalIndex - Stride].y + scanSharedMem[vLocalIndex].y;
+            }
+            else if ((vLocalIndex & a) == a)
+            {
+                scanSharedMem[vLocalIndex].x = scanSharedMem[vLocalIndex + Stride].y;
+            }
+            else
+            {
+                scanSharedMem[vLocalIndex].x = scanSharedMem[vLocalIndex].y;
+            }
+        }
+        PingPong = !PingPong;
+    }
+    
+    //store data to global memory
+    Output[vGrobalIndex] = scanSharedMem[vLocalIndex].y + vData;
+}
+
+[numthreads(SCAN_BLOCK_SIZE, 1, 1)]
+void scanInBucket(uint vGrobalIndex : SV_DispatchThreadID, uint vLocalIndex : SV_GroupIndex)
+{
+    uint Data = Input[vGrobalIndex];
+    scan(vGrobalIndex, vLocalIndex, Data);
+}
+
+[numthreads(SCAN_BLOCK_SIZE, 1, 1)]
+void scanBucketResult(uint vGrobalIndex : SV_DispatchThreadID, uint vLocalIndex : SV_GroupIndex)
+{
+    uint Data = Input[vGrobalIndex * SCAN_BLOCK_SIZE - 1];
+    scan(vGrobalIndex, vLocalIndex, Data);
+}
+
+[numthreads(SCAN_BLOCK_SIZE, 1, 1)]
+void scanAddBucketResult(uint vGrobalIndex : SV_DispatchThreadID, uint vGroupID : SV_GroupID)
+{
+    Output[vGrobalIndex] += Input1[vGroupID];
+}
