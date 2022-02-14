@@ -35,7 +35,7 @@ namespace LODFluid
         {
             GPUBufferClearCS.SetInt("BufferSize", vBufferSize);
             GPUBufferClearCS.SetBuffer(clearUIntBufferWithZeroKernel, "TargetBuffer_RW", vTargetBuffer);
-            GPUBufferClearCS.Dispatch(clearUIntBufferWithZeroKernel, (int)Mathf.Ceil(((float)vBufferSize / scanAddBucketResultGroupThreadNum)), 1, 1);
+            GPUBufferClearCS.Dispatch(clearUIntBufferWithZeroKernel, (int)Mathf.Ceil(((float)vBufferSize / clearUIntBufferWithZeroGroupThreadNum)), 1, 1);
         }
 
         public void Scan(int vBufferSize, ComputeBuffer vCountBuffer, ComputeBuffer voOffsetBuffer, ComputeBuffer vScanCacheBuffer1, ComputeBuffer vScanCacheBuffer2)
