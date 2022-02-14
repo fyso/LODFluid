@@ -9,7 +9,6 @@ namespace LODFluid
         private ComputeShader ForceBasedBoundaryCS;
         private int solveBoundaryKernel;
 
-        private bool m_IsInit = false;
         public EnforceBoundarySloverInvoker()
         {
             ForceBasedBoundaryCS = Resources.Load<ComputeShader>("Slover/EnforceBoundarySlover");

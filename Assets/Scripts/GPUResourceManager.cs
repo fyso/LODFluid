@@ -8,7 +8,6 @@ namespace LODFluid
     {
         public ComputeBuffer ParticlePositionBuffer;
         public ComputeBuffer ParticleVelocityBuffer;
-        public ComputeBuffer ParticleDensityBuffer;
         public float ParticleRadius;
         public uint MaxParticleSize;
 
@@ -16,7 +15,6 @@ namespace LODFluid
         {
             ParticlePositionBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
             ParticleVelocityBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
-            ParticleDensityBuffer = new ComputeBuffer((int)vParticleBufferSize, sizeof(float));
             ParticleRadius = vParticleRadius;
             MaxParticleSize = vParticleBufferSize;
         }
@@ -25,7 +23,6 @@ namespace LODFluid
         {
             ParticlePositionBuffer.Release();
             ParticleVelocityBuffer.Release();
-            ParticleDensityBuffer.Release();
         }
     }
 
@@ -36,6 +33,7 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleIndirectArgumentBuffer;
         public ComputeBuffer Dynamic3DParticleCellIndexBuffer;
         public ComputeBuffer Dynamic3DParticleInnerSortBuffer;
+        public ComputeBuffer Dynamic3DParticleDensityBuffer;
 
         public ComputeBuffer HashGridCellParticleCountBuffer;
         public ComputeBuffer HashGridCellParticleOffsetBuffer;
@@ -66,6 +64,10 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(uint));
 
+            Dynamic3DParticleDensityBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float));
+
             Vector3 HashDia = GPUGlobalParameterManager.GetInstance().SimualtionRangeMax - GPUGlobalParameterManager.GetInstance().SimualtionRangeMin;
             float HashCellLength = GPUGlobalParameterManager.GetInstance().HashCellLength;
             int HashCellCount = Mathf.CeilToInt(HashDia.x / HashCellLength) * Mathf.CeilToInt(HashDia.y / HashCellLength) * Mathf.CeilToInt(HashDia.z / HashCellLength);
@@ -82,6 +84,7 @@ namespace LODFluid
             Dynamic3DParticleIndirectArgumentBuffer.Release();
             Dynamic3DParticleCellIndexBuffer.Release();
             Dynamic3DParticleInnerSortBuffer.Release();
+            Dynamic3DParticleDensityBuffer.Release();
             HashGridCellParticleCountBuffer.Release();
             HashGridCellParticleOffsetBuffer.Release();
             ScanTempBuffer1.Release();

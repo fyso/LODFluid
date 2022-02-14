@@ -22,7 +22,7 @@ namespace LODFluid
                     WaterGenerateResolution);
             }
 
-            Profiler.BeginSample("CountingSort");
+            Profiler.BeginSample("Counting sort");
             CompactNSearchInvoker.GetInstance().CountingSort(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
@@ -31,17 +31,20 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleDensityBuffer,
                     GPUResourceManager.GetInstance().ScanTempBuffer1,
                     GPUResourceManager.GetInstance().ScanTempBuffer2,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength);
             Profiler.EndSample();
 
+            Profiler.BeginSample("Apply boundary influence");
             EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
                     BoundaryObjects,
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer
                 );
+            Profiler.EndSample();
         }
 
         void OnRenderObject()

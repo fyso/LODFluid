@@ -6,6 +6,7 @@
 #pragma kernel solveDivergenceIteration
 #pragma kernel computeDensityAdv
 #pragma kernel solvePressureIteration
+#pragma kernel updateVelocityWithNoPressureForce
 
 float3 HashGridMin;
 float HashGridCellLength;
@@ -17,6 +18,7 @@ float SearchRadius;
 float ParticleVolume;
 float TimeStep;
 float Viscosity;
+float Gravity;
 
 StructuredBuffer<uint> TargetParticleIndirectArgment_R;
 
@@ -201,4 +203,26 @@ void solvePressureIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
     
     CenterVel += ViscosityAcc * TimeStep;
     TargetParticleVelocity_RW[i] = CenterVel;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void updateVelocityWithNoPressureForce(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    TargetParticleVelocity_RW[i] += float3(0.0f, -Gravity, 0.0f) * TimeStep;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    //Particle P = AdvectBeforeParticle[i];
+    //P.Position += P.Velocity * TimeStep;
+    //AdvectAfterParticle[i] = P;
 }

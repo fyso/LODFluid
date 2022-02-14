@@ -11,11 +11,9 @@ StructuredBuffer<uint> ParticleIndrectArgment_R;
 
 StructuredBuffer<float3> ParticlePosition_R;
 StructuredBuffer<float3> ParticleVelocity_R;
-StructuredBuffer<float> ParticleDensity_R;
 
 RWStructuredBuffer<float3> SortedParticlePosition_RW;
 RWStructuredBuffer<float3> SortedParticleVelocity_RW;
-RWStructuredBuffer<float> SortedParticleDensity_RW;
 
 StructuredBuffer<uint> ParticleInnerSortIndex_R;
 RWStructuredBuffer<uint> ParticleInnerSortIndex_RW;
@@ -57,5 +55,4 @@ void countingSortFull(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     uint SortIndex = Offset + Index;
     SortedParticlePosition_RW[SortIndex] = ParticlePosition_R[i];
     SortedParticleVelocity_RW[SortIndex] = ParticleVelocity_R[i];
-    SortedParticleDensity_RW[SortIndex] = ParticleDensity_R[i];
 }

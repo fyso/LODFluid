@@ -8,15 +8,12 @@
 RWStructuredBuffer<int> ParticleCountArgment_RW;
 RWStructuredBuffer<float3> ParticlePosition_RW;
 RWStructuredBuffer<float3> ParticleVelocity_RW;
-RWStructuredBuffer<float> ParticleDensity_RW;
 
 StructuredBuffer<float3> TargetParticlePosition_R;
 StructuredBuffer<float3> TargetParticleVelocity_R;
-StructuredBuffer<float> TargetParticleDensity_R;
 
 RWStructuredBuffer<float3> NarrowParticlePosition_RW;
 RWStructuredBuffer<float3> NarrowParticleVelocity_RW;
-RWStructuredBuffer<float> NarrowParticleDensity_RW;
 
 RWStructuredBuffer<uint> ParticleFilter_RW;
 StructuredBuffer<uint> ParticleScatterOffset_R;
@@ -43,7 +40,6 @@ void addParticleBlock(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     uint x = xp % WaterBlockResX;
     ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + float3(x, y, z) * ParticleRadius * 2.0f;
     ParticleVelocity_RW[CurrParticleCount + i] = float3(0, 0, 0);
-    ParticleDensity_RW[CurrParticleCount + i] = 0.0f;
 }
 
 [numthreads(1, 1, 1)]
@@ -69,7 +65,6 @@ void scatterParticleData(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_Grou
     {
         NarrowParticlePosition_RW[CurrTargetOffset] = TargetParticlePosition_R[i];
         NarrowParticleVelocity_RW[CurrTargetOffset] = TargetParticleVelocity_R[i];
-        NarrowParticleDensity_RW[CurrTargetOffset] = TargetParticleDensity_R[i];
     }
     
     if (i == ParticleCountArgment_RW[ParticleCountArgumentOffset] - 1)

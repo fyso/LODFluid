@@ -33,7 +33,6 @@ namespace LODFluid
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleCountArgment_RW", voParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", voTarget.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", voTarget.ParticleVelocityBuffer);
-            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleDensity_RW", voTarget.ParticleDensityBuffer);
             DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / GPUGlobalParameterManager.GetInstance().SPHThreadSize), 1, 1);
             
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
