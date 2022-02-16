@@ -75,6 +75,6 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
             NorVel = -R * NorVel;
             TargetParticleVelocity_RW[i] = NorVel + TanVel + BoundaryVel;
         }
-        TargetParticlePosition_RW[i] = Pos - 0.1f * Dist * Normal;
+        TargetParticlePosition_RW[i] = Pos - Dist * Normal;
     }
 }

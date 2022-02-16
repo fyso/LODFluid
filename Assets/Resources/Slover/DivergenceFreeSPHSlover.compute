@@ -7,6 +7,7 @@
 #pragma kernel computeDensityAdv
 #pragma kernel solvePressureIteration
 #pragma kernel updateVelocityWithNoPressureForce
+#pragma kernel advectAndSwapParticleBuffer
 
 float3 HashGridMin;
 float HashGridCellLength;
@@ -31,8 +32,8 @@ RWStructuredBuffer<float3> TargetParticlePosition_RW;
 StructuredBuffer<float3> TargetParticleVelocity_R;
 RWStructuredBuffer<float3> TargetParticleVelocity_RW;
 
-StructuredBuffer<float> TargetParticleDensity_R;
-RWStructuredBuffer<float> TargetParticleDensity_RW;
+StructuredBuffer<float> Density_R;
+RWStructuredBuffer<float> Density_RW;
 
 StructuredBuffer<float> Alpha_R;
 RWStructuredBuffer<float> Alpha_RW;
@@ -95,7 +96,7 @@ void computeAlphaAndDensity(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
          Sum_Mj_GradWij += Mj_GradWij;
     );
     
-    TargetParticleDensity_RW[i] = min(CurrDensity, 1.1f);
+    Density_RW[i] = min(CurrDensity, 1.1f);
     
     float AlphaTemp = dot(Sum_Mj_GradWij, Sum_Mj_GradWij) + Sum_Norm2_Mj_GradWij;
     if (AlphaTemp > EPSILON)
@@ -132,6 +133,11 @@ void computeDensityChange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_Gro
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
+void warmstartDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
 void solveDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
@@ -140,7 +146,7 @@ void solveDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV
     
     float3 CenterPos = TargetParticlePosition_R[i];
     float3 CenterVel = TargetParticleVelocity_RW[i];
-    float CenterDensity = TargetParticleDensity_R[i];
+    float CenterDensity = Density_R[i];
     float CenterKi = DensityChange_R[i] * Alpha_R[i] / TimeStep;
     
     FOR_EACH_NEIGHBOR(
@@ -171,7 +177,7 @@ void computeDensityAdv(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupI
         CurrDensityDelta += ParticleVolume * dot((CenterVel - NeighborVel), computeCubicKernelGradW(RelativePos, SearchRadius));
     );
     
-    CurrDensityDelta = TargetParticleDensity_R[i] + TimeStep * CurrDensityDelta;
+    CurrDensityDelta = Density_R[i] + TimeStep * CurrDensityDelta;
     DensityAdv_RW[i] = max(CurrDensityDelta, 1.0f);
 }
 
@@ -184,14 +190,14 @@ void solvePressureIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
     
     float3 CenterPos = TargetParticlePosition_R[i];
     float3 CenterVel = TargetParticleVelocity_RW[i];
-    float CenterDensity = TargetParticleDensity_R[i];
+    float CenterDensity = Density_R[i];
     float CenterKi = (DensityAdv_R[i] - 1.0f) * Alpha_R[i] * pow(1.0f / TimeStep, 2);
     
     float3 ViscosityAcc = float3(0.0f, 0.0f, 0.0f);
     
     FOR_EACH_NEIGHBOR(
         float3 NeighborVel = TargetParticleVelocity_RW[c];
-        float NeighborDensity = TargetParticleDensity_R[c];
+        float NeighborDensity = Density_R[c];
         float NeighborKj = (DensityAdv_R[c] - 1.0f) * Alpha_R[c] * pow(1.0f / TimeStep, 2);
         float Sum = CenterKi + NeighborKj;
         if (abs(Sum) > EPSILON)
@@ -215,6 +221,10 @@ void updateVelocityWithNoPressureForce(uint ThreadIdx : SV_GroupIndex, uint Grou
     TargetParticleVelocity_RW[i] += float3(0.0f, -Gravity, 0.0f) * TimeStep;
 }
 
+StructuredBuffer<float3> BackParticlePosition_R;
+StructuredBuffer<float3> BackParticleVelocity_R;
+RWStructuredBuffer<float3> FrontParticlePosition_RW;
+RWStructuredBuffer<float3> FrontParticleVelocity_RW;
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
@@ -222,7 +232,8 @@ void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx :
     if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
         return;
     
-    //Particle P = AdvectBeforeParticle[i];
-    //P.Position += P.Velocity * TimeStep;
-    //AdvectAfterParticle[i] = P;
+    float3 NewPosition = BackParticlePosition_R[i];
+    float3 NewVelocity = BackParticleVelocity_R[i];
+    FrontParticlePosition_RW[i] = NewPosition + NewVelocity * TimeStep;
+    FrontParticleVelocity_RW[i] = BackParticleVelocity_R[i];
 }
