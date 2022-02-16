@@ -17,7 +17,7 @@ namespace LODFluid
         public float Dynamic3DParticleRadius = 0.25f;
         //public float TimeStep = 0.001f;
         public float TimeStep = 0.016667f;
-        public float Viscosity = 0.001f;
+        public float Viscosity = 0.01f;
         public float Gravity = 9.8f;
         public float ParticleVolume { get { return 0.8f * Mathf.Pow(2.0f * Dynamic3DParticleRadius, 3.0f); } }
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }
@@ -25,8 +25,8 @@ namespace LODFluid
         public Vector3 SimualtionRangeMin { get { return (new Vector3(-32, -16, -16)) * SearchRadius; } }
         public Vector3 SimualtionRangeMax { get { return (new Vector3(32, 16, 16)) * SearchRadius; } }
         public float HashCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
-        public Vector3 HashGridMin { get { return SimualtionRangeMin - Vector3.one * SearchRadius * 2.0f; } }
-        public Vector3 HashGridMax { get { return SimualtionRangeMax + Vector3.one * SearchRadius * 2.0f; } }
+        public Vector3 HashGridMin { get { return SimualtionRangeMin; } }
+        public Vector3 HashGridMax { get { return SimualtionRangeMax; } }
         public Vector3Int HashResolution { 
             get {
                 Vector3 SimulationDia = HashGridMax - HashGridMin;

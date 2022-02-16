@@ -20,13 +20,6 @@ namespace LODFluid
             Gizmos.color = new Color(1.0f, 0.0f, 0.0f);
             Gizmos.DrawWireCube((SimulationMin + SimulationMax) * 0.5f, SimulationMax - SimulationMin);
 
-            Vector3 HashGridMin = GPUGlobalParameterManager.GetInstance().HashGridMin;
-            float HashCellLength = GPUGlobalParameterManager.GetInstance().HashCellLength;
-            Vector3Int HashResolution = GPUGlobalParameterManager.GetInstance().HashResolution;
-            Vector3 HashGridMax = HashGridMin + new Vector3(HashResolution.x * HashCellLength, HashResolution.y * HashCellLength, HashResolution.z * HashCellLength);
-            Gizmos.color = new Color(0.0f, 1.0f, 0.0f);
-            Gizmos.DrawWireCube((HashGridMin + HashGridMax) * 0.5f, HashGridMax - HashGridMin);
-
             float ParticleRaius = GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius;
             Vector3 WaterGenerateBlockMax = WaterGeneratePosition + new Vector3(WaterGenerateResolution.x * ParticleRaius * 2.0f, WaterGenerateResolution.y * ParticleRaius * 2.0f, WaterGenerateResolution.z * ParticleRaius * 2.0f);
             Gizmos.color = new Color(1.0f, 1.0f, 0.0f);
@@ -48,7 +41,7 @@ namespace LODFluid
                 CurrrentParticleData = ParticleIndirectArgumentCPU[4];
             }
 
-                Profiler.BeginSample("Counting sort");
+            Profiler.BeginSample("Counting sort");
             CompactNSearchInvoker.GetInstance().CountingSort(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
