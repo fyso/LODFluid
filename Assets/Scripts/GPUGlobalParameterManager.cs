@@ -15,8 +15,7 @@ namespace LODFluid
 
         public uint Max3DParticleCount = 500000;
         public float Dynamic3DParticleRadius = 0.25f;
-        //public float TimeStep = 0.001f;
-        public float TimeStep = 0.016667f;
+        public float TimeStep = 0.01666667f;
         public float Viscosity = 0.01f;
         public float Gravity = 9.8f;
         public float ParticleVolume { get { return 0.8f * Mathf.Pow(2.0f * Dynamic3DParticleRadius, 3.0f); } }

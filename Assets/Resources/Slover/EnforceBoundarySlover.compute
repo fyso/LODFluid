@@ -43,7 +43,7 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
         return;
     
     float3 Pos = TargetParticlePosition_RW[i];
-    float3 ObjectPos = mul(InvRotation, float4((Pos / Scale - Translate), 1.0f)).xyz;
+    float3 ObjectPos = mul(InvRotation, float4((Pos - Translate) / Scale, 1.0f)).xyz;
     
     //texture boundary info
     float3 Offset = ObjectPos - SDFDomainMin;

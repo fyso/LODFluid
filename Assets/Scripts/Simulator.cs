@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
-using UnityEngine.UI;
 
 namespace LODFluid
 {
@@ -75,7 +74,8 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().ParticleVolume,
                     GPUGlobalParameterManager.GetInstance().TimeStep,
                     GPUGlobalParameterManager.GetInstance().Viscosity,
-                    GPUGlobalParameterManager.GetInstance().Gravity
+                    GPUGlobalParameterManager.GetInstance().Gravity,
+                    6, 6
                 );
             Profiler.EndSample();
 
