@@ -9,6 +9,7 @@
 StructuredBuffer<uint> TargetParticleIndirectArgment_R;
 RWStructuredBuffer<float3> TargetParticlePosition_RW;
 RWStructuredBuffer<float4> ClosestPointAndVolume_RW;
+RWStructuredBuffer<float3> BoundaryVelocity_RW;
 
 SamplerState Sampler_Trilinear_Clamp;
 
@@ -37,6 +38,7 @@ uint VolumeMapZEdgeNodeCount;
 float3 Translate;
 float4x4 Rotation;
 float4x4 InvRotation;
+float3 BoundaryVelocity;
 
 float gaussian_weights_1_30[16];
 float gaussian_abscissae_1_30[16];
@@ -124,6 +126,9 @@ float interpolateScalar(RWStructuredBuffer<float> vCubicMap, float3 vSamplePos)
     float InterpolateResult = 0.0f;
     
     float3 VolumeMapDomainMax = VolumeMapDomainMin + float3(VolumeMapResolutionX, VolumeMapResolutionY, VolumeMapResolutionZ) * VolumeMapCellSize;
+    if (vSamplePos.x < VolumeMapDomainMin.x || vSamplePos.y < VolumeMapDomainMin.y || vSamplePos.z < VolumeMapDomainMin.z ||
+        vSamplePos.x >= VolumeMapDomainMax.x || vSamplePos.y >= VolumeMapDomainMax.y || vSamplePos.z >= VolumeMapDomainMax.z)
+        return 0.0f;
     
     //realative weight
     uint3 Cell3DIndex = getCell3Dindex(vSamplePos);
@@ -393,6 +398,9 @@ float4 interpolateGradAndScalar(RWStructuredBuffer<float> vCubicMap, float3 vSam
     float4 InterpolateResult = float4(0.0f, 0.0f, 0.0f, 0.0f);
     
     float3 VolumeMapDomainMax = VolumeMapDomainMin + float3(VolumeMapResolutionX, VolumeMapResolutionY, VolumeMapResolutionZ) * VolumeMapCellSize;
+    if (vSamplePos.x < VolumeMapDomainMin.x || vSamplePos.y < VolumeMapDomainMin.y || vSamplePos.z < VolumeMapDomainMin.z ||
+        vSamplePos.x >= VolumeMapDomainMax.x || vSamplePos.y >= VolumeMapDomainMax.y || vSamplePos.z >= VolumeMapDomainMax.z)
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
     
     //realative weight
     uint3 Cell3DIndex = getCell3Dindex(vSamplePos);
@@ -895,9 +903,9 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
     float4 NormalAndDist = interpolateGradAndScalar(SignedDistanceArray_RW, ObjectPos);
     float3 DisplacementVector = mul(Rotation, float4(NormalAndDist.w * normalize(NormalAndDist.xyz), 1.0f)).xyz;
     float CurrDist = length(DisplacementVector);
-    if (VolumeData > 0 && NormalAndDist.w > 0.0f /*&& length(NormalAndDist.xyz) > EPSILON*/ && CurrDist < SearchRadius)
+    if (VolumeData > 0 && NormalAndDist.w > 0.0f && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
     {
-        float3 CurrClosestPoint = CenterPos - normalize(DisplacementVector) * max(CurrDist + 0.5f * ParticleRadius, 2.0f * ParticleRadius);
+        float3 CurrClosestPoint = CenterPos - normalize(DisplacementVector) * /*max(*/CurrDist/* + 0.5f * ParticleRadius, 2.0f * ParticleRadius)*/;
         
         float3 OldClosestPoint = ClosestPointAndVolume_RW[i].xyz;
         float OldDist = length(CenterPos - OldClosestPoint);
@@ -905,6 +913,7 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
         if (CurrDist < OldDist)
         {
             ClosestPointAndVolume_RW[i] = float4(CurrClosestPoint, VolumeData);
+            BoundaryVelocity_RW[i] = BoundaryVelocity;
         }
     }
 }

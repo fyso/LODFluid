@@ -12,6 +12,7 @@ namespace LODFluid
         public List<GameObject> BoundaryObjects;
         public int CurrrentParticleData = 0;
         public float TimeStep = 0.016666667f;
+        public float Viscosity = 0.01f;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
 
@@ -51,11 +52,12 @@ namespace LODFluid
         void Update()
         {
             GPUGlobalParameterManager.GetInstance().TimeStep = TimeStep;
+            GPUGlobalParameterManager.GetInstance().Viscosity = Viscosity;
 
-            if (Input.GetKey(KeyCode.Space) && Time.frameCount % 25 == 0)
+            if (Input.GetKeyDown(KeyCode.Space))
             {
                 DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle, 
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     WaterGeneratePosition,
                     WaterGenerateResolution);
@@ -64,7 +66,10 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
                 CurrrentParticleData = ParticleIndirectArgumentCPU[4];
             }
+        }
 
+        void FixedUpdate()
+        {
             Profiler.BeginSample("Counting sort");
             CompactNSearchInvoker.GetInstance().CountingSort(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
@@ -91,6 +96,7 @@ namespace LODFluid
                         GPUResourceManager.GetInstance().Volume,
                         GPUResourceManager.GetInstance().SignedDistance,
                         GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
+                        GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
                         GPUGlobalParameterManager.GetInstance().SearchRadius,
                         GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
                 Profiler.EndSample();
@@ -99,11 +105,14 @@ namespace LODFluid
             if (UseEnforceBoundary)
             {
                 Profiler.BeginSample("Apply boundary influence");
-                EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
-                        BoundaryObjects,
-                        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-                        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer
-                    );
+                for (int i = 0; i < 4; i++)
+                {
+                    EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
+                            BoundaryObjects,
+                            GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                            GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer
+                        );
+                }
                 Profiler.EndSample();
             }
 
@@ -119,6 +128,7 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().Dynamic3DParticleDensityChangeBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleDensityAdvBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength,
                     GPUGlobalParameterManager.GetInstance().HashResolution,

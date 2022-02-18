@@ -169,6 +169,7 @@ namespace LODFluid
             List<CubicMap> vVolumeMap,
             List<CubicMap> vSignedDistanceMap,
             ComputeBuffer voClosestPointAndVolume,
+            ComputeBuffer voBoundaryVelocity,
             float vSearchRadius,
             float vParticleRadius)
         {
@@ -206,16 +207,24 @@ namespace LODFluid
                 m_GenerateVolumeMapCS.SetInt("VolumeMapZEdgeNodeCount", vVolumeMap[i].ZEdgeCount);
 
                 Vector3 Position = vBoundaryObject[i].transform.position;
-                Vector3 Scale = vBoundaryObject[i].transform.localScale;
                 Matrix4x4 Rotation = new Matrix4x4();
                 Rotation.SetTRS(new Vector3(0, 0, 0), vBoundaryObject[i].transform.rotation, new Vector3(1, 1, 1));
                 m_GenerateVolumeMapCS.SetFloats("Translate", Position.x, Position.y, Position.z);
                 m_GenerateVolumeMapCS.SetMatrix("Rotation", Rotation);
                 m_GenerateVolumeMapCS.SetMatrix("InvRotation", Rotation.inverse);
 
+                Vector3 BundaryVelocity = Vector3.zero;
+                Rigidbody CurrRigidBody = vBoundaryObject[i].GetComponent<Rigidbody>();
+                if (vBoundaryObject[i].GetComponent<Rigidbody>())
+                {
+                    BundaryVelocity = CurrRigidBody.velocity;
+                }
+                m_GenerateVolumeMapCS.SetFloats("BoundaryVelocity", BundaryVelocity.x, BundaryVelocity.y, BundaryVelocity.z);
+
                 m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "TargetParticleIndirectArgment_R", vTargetParticleIndirectArgment);
                 m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "TargetParticlePosition_RW", vTargetParticle.ParticlePositionBuffer);
                 m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "ClosestPointAndVolume_RW", voClosestPointAndVolume);
+                m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "BoundaryVelocity_RW", voBoundaryVelocity);
                 m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "VolumeArray_RW", vVolumeMap[i].Data);
                 m_GenerateVolumeMapCS.SetBuffer(m_QueryCloestPointAndVolumeKernel, "SignedDistanceArray_RW", vSignedDistanceMap[i].Data);
 

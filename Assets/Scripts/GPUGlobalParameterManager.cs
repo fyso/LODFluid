@@ -36,10 +36,5 @@ namespace LODFluid
                 return new Vector3Int(X, Y, Z);
             } 
         }
-
-        public GPUGlobalParameterManager()
-        {
-
-        }
     }
 }

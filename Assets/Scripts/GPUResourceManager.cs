@@ -50,6 +50,7 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleDensityChangeBuffer;
         public ComputeBuffer Dynamic3DParticleDensityAdvBuffer;
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
+        public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
 
         ~GPUResourceManager()
         {
@@ -112,6 +113,10 @@ namespace LODFluid
             Dynamic3DParticleClosestPointAndVolumeBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 4);
+
+            Dynamic3DParticleBoundaryVelocityBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float) * 3);
 
             Vector3Int HashResolution = GPUGlobalParameterManager.GetInstance().HashResolution;
             int HashCellCount = HashResolution.x * HashResolution.y * HashResolution.z;

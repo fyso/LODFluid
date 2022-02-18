@@ -328,13 +328,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: -15.26, y: -7.4, z: -7}
-  WaterGenerateResolution: {x: 20, y: 20, z: 28}
+  WaterGeneratePosition: {x: -24.53, y: -7.4, z: -7}
+  WaterGenerateResolution: {x: 65, y: 25, z: 28}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 8164078560040880145}
   CurrrentParticleData: 0
   TimeStep: 0.033
+  Viscosity: 0.05
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
 --- !u!4 &1784697732
@@ -371,7 +372,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!54 &137159759222451814
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -401,8 +402,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 5.3333335, y: 5.3333335, z: 5.3333335}
+    m_Center: {x: -0.00000047683716, y: -0.00000023841858, z: 0}
+    m_Extent: {x: 4.266667, y: 5.3333335, z: 4.266667}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
   bakedRenderers:
@@ -442,7 +443,7 @@ Transform:
   m_GameObject: {fileID: 8164078560040880145}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 32, y: 16, z: 15}
+  m_LocalScale: {x: 50, y: 16, z: 15}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 3
@@ -579,7 +580,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 17.066668, y: 8.533334, z: 8}
+    m_Extent: {x: 26.666666, y: 8.533334, z: 8}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
   bakedRenderers:
@@ -621,8 +622,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 137159759222451813}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -11.74, y: 16.2, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 5}
+  m_LocalPosition: {x: 4.9, y: -4, z: 0}
+  m_LocalScale: {x: 4, y: 5, z: 4}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 4
