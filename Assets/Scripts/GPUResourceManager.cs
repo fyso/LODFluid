@@ -30,6 +30,10 @@ namespace LODFluid
     {
         public ParticleBuffer Dynamic3DParticle;
         public ParticleBuffer DynamicSorted3DParticle;
+
+        public List<CubicMap> SignedDistance;
+        public List<CubicMap> Volume;
+
         public ComputeBuffer Dynamic3DParticleIndirectArgumentBuffer;
 
         public ComputeBuffer Dynamic3DParticleCellIndexBuffer;
@@ -45,6 +49,7 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleAlphaBuffer;
         public ComputeBuffer Dynamic3DParticleDensityChangeBuffer;
         public ComputeBuffer Dynamic3DParticleDensityAdvBuffer;
+        public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
 
         ~GPUResourceManager()
         {
@@ -59,10 +64,14 @@ namespace LODFluid
             Dynamic3DParticleAlphaBuffer.Release();
             Dynamic3DParticleDensityChangeBuffer.Release();
             Dynamic3DParticleDensityAdvBuffer.Release();
+            Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
         }
 
         public GPUResourceManager()
         {
+            SignedDistance = new List<CubicMap>();
+            Volume = new List<CubicMap>();
+
             Dynamic3DParticleIndirectArgumentBuffer = new ComputeBuffer(7, sizeof(int), ComputeBufferType.IndirectArguments);
             int[] ParticleIndirectArgumentCPU = new int[7] { 1, 1, 1, 3, 0, 0, 0 };
             Dynamic3DParticleIndirectArgumentBuffer.SetData(ParticleIndirectArgumentCPU);
@@ -99,6 +108,10 @@ namespace LODFluid
             Dynamic3DParticleDensityAdvBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float));
+
+            Dynamic3DParticleClosestPointAndVolumeBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float) * 4);
 
             Vector3Int HashResolution = GPUGlobalParameterManager.GetInstance().HashResolution;
             int HashCellCount = HashResolution.x * HashResolution.y * HashResolution.z;

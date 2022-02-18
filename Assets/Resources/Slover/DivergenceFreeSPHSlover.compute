@@ -21,6 +21,8 @@ float TimeStep;
 float Viscosity;
 float Gravity;
 
+bool UseVolumeMapBoundary;
+
 StructuredBuffer<uint> TargetParticleIndirectArgment_R;
 
 StructuredBuffer<uint> HashGridCellParticleCount_R;
@@ -43,6 +45,8 @@ RWStructuredBuffer<float> DensityChange_RW;
 
 StructuredBuffer<float> DensityAdv_R;
 RWStructuredBuffer<float> DensityAdv_RW;
+
+StructuredBuffer<float4> ParticleClosestPointAndVolume_R;
 
 #define FOR_EACH_NEIGHBOR(CODE) \
 int3 Cell3DIndex = (CenterPos - HashGridMin) / HashGridCellLength;\
@@ -96,6 +100,16 @@ void computeAlphaAndDensity(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
          Sum_Mj_GradWij += Mj_GradWij;
     );
     
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensity += CurrClosestPointAndVolume.w * computeCubicKernelW(length(CenterPos - CurrClosestPointAndVolume.xyz), SearchRadius);
+            Sum_Mj_GradWij += CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+        }
+    }
+    
     Density_RW[i] = min(CurrDensity, 1.1f);
     
     float AlphaTemp = dot(Sum_Mj_GradWij, Sum_Mj_GradWij) + Sum_Norm2_Mj_GradWij;
@@ -124,17 +138,21 @@ void computeDensityChange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_Gro
         NeighborCount++;
     );
     
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensityChange += CurrClosestPointAndVolume.w * dot((CenterVel - float3(0, 0, 0) /* suppose static boundary */), computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius));
+        }
+    }
+    
     CurrDensityChange = max(CurrDensityChange, 0.0f);
     
     if (NeighborCount < 20)
         CurrDensityChange = 0.0f;
     
     DensityChange_RW[i] = CurrDensityChange;
-}
-
-[numthreads(SPH_THREAD_NUM, 1, 1)]
-void warmstartDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
-{
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
@@ -157,6 +175,20 @@ void solveDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV
             CenterVel += TimeStep * Sum * ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius);
         }
     );
+    
+    
+    if (UseVolumeMapBoundary)
+    {
+        if (abs(CenterKi) > EPSILON)
+        {
+            float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+            if (CurrClosestPointAndVolume.w > 0 && abs(CenterKi) > EPSILON)
+            {
+                CenterVel += TimeStep * 1.0f * CenterKi * CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+            }
+        }
+    }
+    
     TargetParticleVelocity_RW[i] = CenterVel;
 }
 
@@ -177,6 +209,15 @@ void computeDensityAdv(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupI
         CurrDensityDelta += ParticleVolume * dot((CenterVel - NeighborVel), computeCubicKernelGradW(RelativePos, SearchRadius));
     );
     
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensityDelta += CurrClosestPointAndVolume.w * dot((CenterVel - float3(0, 0, 0) /* suppose static boundary */), computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius));
+        }
+    }
+    
     CurrDensityDelta = Density_R[i] + TimeStep * CurrDensityDelta;
     DensityAdv_RW[i] = max(CurrDensityDelta, 1.0f);
 }
@@ -193,8 +234,6 @@ void solvePressureIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
     float CenterDensity = Density_R[i];
     float CenterKi = (DensityAdv_R[i] - 1.0f) * Alpha_R[i] * pow(1.0f / TimeStep, 2);
     
-    float3 ViscosityAcc = float3(0.0f, 0.0f, 0.0f);
-    
     FOR_EACH_NEIGHBOR(
         float3 NeighborVel = TargetParticleVelocity_RW[c];
         float NeighborDensity = Density_R[c];
@@ -204,10 +243,20 @@ void solvePressureIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_G
         {
             CenterVel += TimeStep * Sum * ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius);
         }
-        ViscosityAcc -= Viscosity * (ParticleVolume / NeighborDensity) * (CenterVel - NeighborVel) * computeCubicKernelW(Dist, SearchRadius) / TimeStep;
     );
     
-    CenterVel += ViscosityAcc * TimeStep;
+    if (UseVolumeMapBoundary)
+    {
+        if (abs(CenterKi) > EPSILON)
+        {
+            float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+            if (CurrClosestPointAndVolume.w > 0 && abs(CenterKi) > EPSILON)
+            {
+                CenterVel += TimeStep * CenterKi * CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+            }
+        }
+    }
+    
     TargetParticleVelocity_RW[i] = CenterVel;
 }
 
@@ -218,7 +267,32 @@ void updateVelocityWithNoPressureForce(uint ThreadIdx : SV_GroupIndex, uint Grou
     if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
         return;
     
-    TargetParticleVelocity_RW[i] += float3(0.0f, -Gravity, 0.0f) * TimeStep;
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_RW[i];
+    float3 CenterDensity = Density_R[i];
+    
+    //Viscosity
+    float3 ViscosityAcc = float3(0.0f, 0.0f, 0.0f);
+    FOR_EACH_NEIGHBOR(
+        float3 NeighborVel = TargetParticleVelocity_RW[c];
+        float NeighborDensity = Density_R[c];
+        ViscosityAcc -= Viscosity * (ParticleVolume / NeighborDensity) * (CenterVel - NeighborVel) * computeCubicKernelW(Dist, SearchRadius) / TimeStep;
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            ViscosityAcc -= Viscosity * (CurrClosestPointAndVolume.w / CenterDensity) * (CenterVel - float3(0, 0, 0) /*BoundaryVel is Zero*/) * computeCubicKernelW(length(CenterPos - CurrClosestPointAndVolume.xyz), SearchRadius) / TimeStep;
+        }
+    }
+    CenterVel += ViscosityAcc * TimeStep;
+    
+    //Gravity
+    CenterVel += float3(0.0f, -Gravity, 0.0f) * TimeStep;
+    
+    TargetParticleVelocity_RW[i] = CenterVel;
 }
 
 StructuredBuffer<float3> BackParticlePosition_R;

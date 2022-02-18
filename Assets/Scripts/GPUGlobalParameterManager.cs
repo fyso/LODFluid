@@ -20,6 +20,7 @@ namespace LODFluid
         public float Gravity = 9.8f;
         public float ParticleVolume { get { return 0.8f * Mathf.Pow(2.0f * Dynamic3DParticleRadius, 3.0f); } }
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }
+        public float CubicZero { get { return 8.0f / (Mathf.PI * Mathf.Pow(SearchRadius, 3.0f)); } }
 
         public Vector3 SimualtionRangeMin { get { return (new Vector3(-32, -16, -16)) * SearchRadius; } }
         public Vector3 SimualtionRangeMax { get { return (new Vector3(32, 16, 16)) * SearchRadius; } }

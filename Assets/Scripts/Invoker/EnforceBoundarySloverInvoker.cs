@@ -47,7 +47,6 @@ namespace LODFluid
                 Matrix4x4 Rotation = new Matrix4x4();
                 Rotation.SetTRS(new Vector3(0, 0, 0), vBoundaryObjects[i].transform.rotation, new Vector3(1, 1, 1));
                 ForceBasedBoundaryCS.SetFloats("Translate", Position.x, Position.y, Position.z);
-                ForceBasedBoundaryCS.SetFloats("Scale", Scale.x, Scale.y, Scale.z);
                 ForceBasedBoundaryCS.SetMatrix("Rotation", Rotation);
                 ForceBasedBoundaryCS.SetMatrix("InvRotation", Rotation.inverse);
 

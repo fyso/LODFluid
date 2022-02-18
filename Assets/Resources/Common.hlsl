@@ -9,6 +9,7 @@
 #define ParticleCountArgumentOffset 4
 #define EPSILON 1e-7f
 #define PI 3.14159274F
+#define FLT_MAX 3.402823466e+38F
 
 /* compute morton code */
 uint expandBits3D(uint v)
@@ -23,7 +24,10 @@ uint expandBits3D(uint v)
 
 uint computeMorton3D(uint3 vCellIndex3D)
 {
-    return (expandBits3D(vCellIndex3D.z) << 2) + (expandBits3D(vCellIndex3D.y) << 1) + expandBits3D(vCellIndex3D.x);
+    return 
+        (expandBits3D(vCellIndex3D.z) << 2) + 
+        (expandBits3D(vCellIndex3D.y) << 1) + 
+        expandBits3D(vCellIndex3D.x);
 }
 
 float computeCubicKernelW(float vR, float vCubicRadius)

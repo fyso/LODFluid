@@ -3,6 +3,7 @@ Shader "Unlit/SPHParticle"
     Properties
     {
         _ParticleRadius ("Radius", float) = 0.25
+        _ParticleColor ("Color", Color) = (.25, .5, .5, 1)
     }
 
     SubShader
@@ -54,6 +55,7 @@ Shader "Unlit/SPHParticle"
             };
 
             uniform float _ParticleRadius;
+            uniform float4 _ParticleColor;
 
             StructuredBuffer<float3> _particlePositionBuffer;
             StructuredBuffer<float3> _particleVelocityBuffer;
@@ -80,7 +82,7 @@ Shader "Unlit/SPHParticle"
                 result.positionCS = TransformWViewToHClip(sphereCenter + float3(_ParticleRadius * result.uv, 0.0f));
                 float3 Velocity = _particleVelocityBuffer[instanceID];
                 float ClampVel = clamp(length(Velocity), 0.0f, 4.0f) / 4.0f;
-                result.col = float4(ClampVel, 1.0f, 1.0f, 1.0f);
+                result.col = ClampVel * float4(1.0f, 1.0f, 1.0f, 1.0f) + _ParticleColor;
                 return result;
             }
 
