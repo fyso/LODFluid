@@ -10,11 +10,17 @@ namespace LODFluid
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
-        public int CurrrentParticleData = 0;
         public float TimeStep = 0.016666667f;
         public float Viscosity = 0.01f;
+        public int DivergenceIterationCount = 6;
+        public int PressureIterationCount = 6;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
+        public bool LogSloverConverge = true;
+
+        public int CurrrentParticleData = 0;
+        public float DivergenceFreeError = 0;
+        public float PressureError = 0;
 
         private void OnDrawGizmos()
         {
@@ -66,10 +72,7 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
                 CurrrentParticleData = ParticleIndirectArgumentCPU[4];
             }
-        }
 
-        void FixedUpdate()
-        {
             Profiler.BeginSample("Counting sort");
             CompactNSearchInvoker.GetInstance().CountingSort(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
@@ -138,9 +141,38 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().Viscosity,
                     GPUGlobalParameterManager.GetInstance().Gravity,
                     UseVolumeMapBoundary,
-                    3, 3
+                    DivergenceIterationCount, PressureIterationCount
                 );
             Profiler.EndSample();
+
+            if (LogSloverConverge)
+            {
+                int[] ParticleIndirectArgumentCPU = new int[7];
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
+                CurrrentParticleData = ParticleIndirectArgumentCPU[4];
+
+                float[] DensityChange = new float[GPUGlobalParameterManager.GetInstance().Max3DParticleCount];
+                GPUResourceManager.GetInstance().Dynamic3DParticleDensityChangeBuffer.GetData(DensityChange);
+                float DensityChangeSum = 0.0f;
+                for (int i = 0; i < CurrrentParticleData; i++)
+                {
+                    DensityChangeSum += Mathf.Abs(DensityChange[i]);
+                }
+                DivergenceFreeError = (DivergenceFreeError + DensityChangeSum / CurrrentParticleData / Time.frameCount) / (1.0f / Time.frameCount + 1.0f);
+
+                float[] DensityAdv = new float[GPUGlobalParameterManager.GetInstance().Max3DParticleCount];
+                GPUResourceManager.GetInstance().Dynamic3DParticleDensityAdvBuffer.GetData(DensityAdv);
+                float Density_error_Sum = 0.0f;
+                for (int i = 0; i < CurrrentParticleData; i++)
+                {
+                    Density_error_Sum += Mathf.Abs(DensityAdv[i] - 1.0f);
+                }
+                PressureError = (PressureError + Density_error_Sum / CurrrentParticleData / Time.frameCount) / (1.0f / Time.frameCount + 1.0f);
+            }
+        }
+
+        void FixedUpdate()
+        {
         }
 
         void OnRenderObject()

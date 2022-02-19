@@ -16,6 +16,8 @@ namespace LODFluid
         private ComputeShader GPUBufferClearCS;
         private int clearUIntBufferWithZeroKernel;
         private uint clearUIntBufferWithZeroGroupThreadNum;
+        private int clearFloatBufferWithZeroKernel;
+        private uint clearFloatBufferWithZeroGroupThreadNum;
 
         public GPUOperation()
         {
@@ -29,13 +31,22 @@ namespace LODFluid
             GPUBufferClearCS = Resources.Load<ComputeShader>("GPU Operation/GPUBufferClear");
             clearUIntBufferWithZeroKernel = GPUBufferClearCS.FindKernel("clearUIntBufferWithZero");
             GPUBufferClearCS.GetKernelThreadGroupSizes(clearUIntBufferWithZeroKernel, out clearUIntBufferWithZeroGroupThreadNum, out _, out _);
+            clearFloatBufferWithZeroKernel = GPUBufferClearCS.FindKernel("clearFloatBufferWithZero");
+            GPUBufferClearCS.GetKernelThreadGroupSizes(clearFloatBufferWithZeroKernel, out clearFloatBufferWithZeroGroupThreadNum, out _, out _);
         }
 
         public void ClearUIntBufferWithZero(int vBufferSize, ComputeBuffer vTargetBuffer)
         {
             GPUBufferClearCS.SetInt("BufferSize", vBufferSize);
-            GPUBufferClearCS.SetBuffer(clearUIntBufferWithZeroKernel, "TargetBuffer_RW", vTargetBuffer);
+            GPUBufferClearCS.SetBuffer(clearUIntBufferWithZeroKernel, "TargetUIntBuffer_RW", vTargetBuffer);
             GPUBufferClearCS.Dispatch(clearUIntBufferWithZeroKernel, (int)Mathf.Ceil(((float)vBufferSize / clearUIntBufferWithZeroGroupThreadNum)), 1, 1);
+        }
+
+        public void ClearFloatBufferWithZero(int vBufferSize, ComputeBuffer vTargetBuffer)
+        {
+            GPUBufferClearCS.SetInt("BufferSize", vBufferSize);
+            GPUBufferClearCS.SetBuffer(clearFloatBufferWithZeroKernel, "TargetFloatBuffer_RW", vTargetBuffer);
+            GPUBufferClearCS.Dispatch(clearFloatBufferWithZeroKernel, (int)Mathf.Ceil(((float)vBufferSize / clearFloatBufferWithZeroGroupThreadNum)), 1, 1);
         }
 
         public void Scan(int vBufferSize, ComputeBuffer vCountBuffer, ComputeBuffer voOffsetBuffer, ComputeBuffer vScanCacheBuffer1, ComputeBuffer vScanCacheBuffer2)
