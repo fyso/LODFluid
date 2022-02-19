@@ -367,11 +367,11 @@ MonoBehaviour:
   - {fileID: 8164078560040880145}
   TimeStep: 0.033
   Viscosity: 0.05
-  DivergenceIterationCount: 16
-  PressureIterationCount: 16
+  DivergenceIterationCount: 6
+  PressureIterationCount: 6
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
-  LogSloverConverge: 1
+  LogSloverConverge: 0
   CurrrentParticleData: 0
   DivergenceFreeError: 0
   PressureError: 0
