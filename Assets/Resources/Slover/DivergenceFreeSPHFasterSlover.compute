@@ -1,0 +1,317 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel computeAlphaAndDensity
+#pragma kernel computeDensityChange
+#pragma kernel solveDivergenceIteration
+#pragma kernel computeDensityAdv
+#pragma kernel solvePressureIteration
+#pragma kernel updateVelocityWithNoPressureForce
+#pragma kernel advectAndSwapParticleBuffer
+
+float3 HashGridMin;
+float HashGridCellLength;
+uint HashGridResolutionX;
+uint HashGridResolutionY;
+uint HashGridResolutionZ;
+
+float SearchRadius;
+float ParticleVolume;
+float TimeStep;
+float Viscosity;
+float Gravity;
+
+bool UseVolumeMapBoundary;
+
+StructuredBuffer<uint> TargetParticleIndirectArgment_R;
+
+StructuredBuffer<uint> HashGridCellParticleCount_R;
+StructuredBuffer<uint> HashGridCellParticleOffset_R;
+
+StructuredBuffer<float3> TargetParticlePosition_R;
+RWStructuredBuffer<float3> TargetParticlePosition_RW;
+
+StructuredBuffer<float3> TargetParticleVelocity_R;
+RWStructuredBuffer<float3> TargetParticleVelocity_RW;
+
+StructuredBuffer<float> Density_R;
+RWStructuredBuffer<float> Density_RW;
+
+StructuredBuffer<float> Alpha_R;
+RWStructuredBuffer<float> Alpha_RW;
+
+StructuredBuffer<float> DensityChange_R;
+RWStructuredBuffer<float> DensityChange_RW;
+
+StructuredBuffer<float> DensityAdv_R;
+RWStructuredBuffer<float> DensityAdv_RW;
+
+StructuredBuffer<float4> ParticleClosestPointAndVolume_R;
+StructuredBuffer<float3> ParticleBoundaryVelocity_R;
+
+#define FOR_EACH_NEIGHBOR(CODE) \
+int3 Cell3DIndex = (CenterPos - HashGridMin) / HashGridCellLength;\
+[unroll]\
+for (int x = -1;x <= 1; x++)\
+{\
+    for (int y = -1;y <= 1; y++)\
+    {\
+        for (int z = -1;z <= 1; z++)\
+        {\
+            int3 AdjCell = Cell3DIndex + int3(x, y, z);\
+            if (AdjCell.x < 0 || AdjCell.y < 0 || AdjCell.z < 0 ||\
+                AdjCell.x >= (int) HashGridResolutionX || AdjCell.y >= (int) HashGridResolutionY || AdjCell.z >= (int) HashGridResolutionZ)\
+                continue;\
+            uint CellLinerIndex = computeMorton3D((uint3) AdjCell);\
+            uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];\
+            if (CellParticleCount == 0)\
+                continue;\
+            uint CellParticleStart = CellLinerIndex == 0 ? 0 : HashGridCellParticleOffset_R[CellLinerIndex - 1];\
+            uint CellParticleEnd = CellParticleStart + CellParticleCount;\
+            for (uint c = CellParticleStart;c < CellParticleEnd; c++)\
+            {\
+                float3 NeighborPos = TargetParticlePosition_R[c];\
+                float3 RelativePos = CenterPos - NeighborPos;\
+                float Dist = length(RelativePos);\
+                if (Dist < SearchRadius && Dist > 0.0f)\
+                {\
+                    CODE\
+                }\
+            }\
+        }\
+    }\
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void computeAlphaAndDensity(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 Sum_Mj_GradWij = float3(0, 0, 0);
+    float Sum_Norm2_Mj_GradWij = 0.0f;
+    float CurrDensity = 0.0f;
+    
+    FOR_EACH_NEIGHBOR(
+         CurrDensity += ParticleVolume * computeCubicKernelW(Dist, SearchRadius);
+         float3 Mj_GradWij = ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius); 
+         Sum_Norm2_Mj_GradWij += dot(Mj_GradWij, Mj_GradWij);
+         Sum_Mj_GradWij += Mj_GradWij;
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensity += CurrClosestPointAndVolume.w * computeCubicKernelW(length(CenterPos - CurrClosestPointAndVolume.xyz), SearchRadius);
+            Sum_Mj_GradWij += CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+        }
+    }
+    
+    Density_RW[i] = min(CurrDensity, 1.1f);
+    
+    float AlphaTemp = dot(Sum_Mj_GradWij, Sum_Mj_GradWij) + Sum_Norm2_Mj_GradWij;
+    if (AlphaTemp > EPSILON)
+        Alpha_RW[i] = -1.0f / AlphaTemp;
+    else
+        Alpha_RW[i] = 0.0f;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void computeDensityChange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_R[i];
+    
+    float CurrDensityChange = 0.0f;
+    uint NeighborCount = 0;
+    
+    FOR_EACH_NEIGHBOR(
+        float3 NeighborVel = TargetParticleVelocity_R[c];
+        CurrDensityChange += ParticleVolume * dot((CenterVel - NeighborVel), computeCubicKernelGradW(RelativePos, SearchRadius));
+        NeighborCount++;
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        float3 CurrBoundaryVelocity = ParticleBoundaryVelocity_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensityChange += CurrClosestPointAndVolume.w * dot((CenterVel - CurrBoundaryVelocity), computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius));
+        }
+    }
+    
+    CurrDensityChange = max(CurrDensityChange, 0.0f);
+    
+    if (NeighborCount < 20)
+        CurrDensityChange = 0.0f;
+    
+    DensityChange_RW[i] = CurrDensityChange;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void solveDivergenceIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_RW[i];
+    float CenterDensity = Density_R[i];
+    float CenterKi = DensityChange_R[i] * Alpha_R[i] / TimeStep;
+    
+    FOR_EACH_NEIGHBOR(
+        float NeighborKj = DensityChange_R[c] * Alpha_R[c] / TimeStep;
+        float Sum = CenterKi + NeighborKj;
+        if (abs(Sum) > EPSILON)
+        {
+            CenterVel += TimeStep * Sum * ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius);
+        }
+    );
+    
+    
+    if (UseVolumeMapBoundary)
+    {
+        if (abs(CenterKi) > EPSILON)
+        {
+            float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+            if (CurrClosestPointAndVolume.w > 0 && abs(CenterKi) > EPSILON)
+            {
+                CenterVel += TimeStep * 1.0f * CenterKi * CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+            }
+        }
+    }
+    
+    TargetParticleVelocity_RW[i] = CenterVel;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void computeDensityAdv(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_R[i];
+    
+    float CurrDensityDelta = 0.0f;
+    
+    FOR_EACH_NEIGHBOR(
+        float3 NeighborVel = TargetParticleVelocity_R[c];
+        CurrDensityDelta += ParticleVolume * dot((CenterVel - NeighborVel), computeCubicKernelGradW(RelativePos, SearchRadius));
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        float3 CurrBoundaryVelocity = ParticleBoundaryVelocity_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            CurrDensityDelta += CurrClosestPointAndVolume.w * dot((CenterVel - CurrBoundaryVelocity), computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius));
+        }
+    }
+    
+    CurrDensityDelta = Density_R[i] + TimeStep * CurrDensityDelta;
+    DensityAdv_RW[i] = max(CurrDensityDelta, 1.0f);
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void solvePressureIteration(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_RW[i];
+    float CenterDensity = Density_R[i];
+    float CenterKi = (DensityAdv_R[i] - 1.0f) * Alpha_R[i] * pow(1.0f / TimeStep, 2);
+    
+    FOR_EACH_NEIGHBOR(
+        float3 NeighborVel = TargetParticleVelocity_RW[c];
+        float NeighborDensity = Density_R[c];
+        float NeighborKj = (DensityAdv_R[c] - 1.0f) * Alpha_R[c] * pow(1.0f / TimeStep, 2);
+        float Sum = CenterKi + NeighborKj;
+        if (abs(Sum) > EPSILON)
+        {
+            CenterVel += TimeStep * Sum * ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius);
+        }
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        if (abs(CenterKi) > EPSILON)
+        {
+            float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+            if (CurrClosestPointAndVolume.w > 0 && abs(CenterKi) > EPSILON)
+            {
+                CenterVel += TimeStep * CenterKi * CurrClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CurrClosestPointAndVolume.xyz, SearchRadius);
+            }
+        }
+    }
+    
+    TargetParticleVelocity_RW[i] = CenterVel;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void updateVelocityWithNoPressureForce(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_R[i];
+    float3 CenterVel = TargetParticleVelocity_RW[i];
+    float3 CenterDensity = Density_R[i];
+    
+    //Viscosity
+    float3 ViscosityAcc = float3(0.0f, 0.0f, 0.0f);
+    FOR_EACH_NEIGHBOR(
+        float3 NeighborVel = TargetParticleVelocity_RW[c];
+        float NeighborDensity = Density_R[c];
+        ViscosityAcc -= Viscosity * (ParticleVolume / NeighborDensity) * (CenterVel - NeighborVel) * computeCubicKernelW(Dist, SearchRadius) / TimeStep;
+    );
+    
+    if (UseVolumeMapBoundary)
+    {
+        float4 CurrClosestPointAndVolume = ParticleClosestPointAndVolume_R[i];
+        float3 CurrBoundaryVelocity = ParticleBoundaryVelocity_R[i];
+        if (CurrClosestPointAndVolume.w > 0)
+        {
+            ViscosityAcc -= Viscosity * (CurrClosestPointAndVolume.w / CenterDensity) * (CenterVel - CurrBoundaryVelocity) * computeCubicKernelW(length(CenterPos - CurrClosestPointAndVolume.xyz), SearchRadius) / TimeStep;
+        }
+    }
+    CenterVel += ViscosityAcc * TimeStep;
+    
+    //Gravity
+    CenterVel += float3(0.0f, -Gravity, 0.0f) * TimeStep;
+    
+    TargetParticleVelocity_RW[i] = CenterVel;
+}
+
+StructuredBuffer<float3> BackParticlePosition_R;
+StructuredBuffer<float3> BackParticleVelocity_R;
+RWStructuredBuffer<float3> FrontParticlePosition_RW;
+RWStructuredBuffer<float3> FrontParticleVelocity_RW;
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 NewPosition = BackParticlePosition_R[i];
+    float3 NewVelocity = BackParticleVelocity_R[i];
+    FrontParticlePosition_RW[i] = NewPosition + NewVelocity * TimeStep;
+    FrontParticleVelocity_RW[i] = BackParticleVelocity_R[i];
+}
