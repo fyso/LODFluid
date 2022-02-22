@@ -40,7 +40,7 @@ namespace LODFluid
             ComputeBuffer vTargetParticleBoundaryVelocityBufferCache,
             Vector3 vHashGridMin, float HashGridCellLength, Vector3Int vHashGridResolution,
             float vSearchRadius, float vParticleVolume, float vTimeStep, float vViscosity, float vGravity, bool vUseVolumeMapBoundary,
-            int vDivergenceFreeIterationCount = 3, int vPressureIterationCount = 2)
+            int vDivergenceFreeIterationCount = 3, int vPressureIterationCount = 2, bool EnableDivergenceFreeSlover = true)
         {
             DivergenceFreeSPHSloverCS.SetFloats("HashGridMin", vHashGridMin.x, vHashGridMin.y, vHashGridMin.z);
             DivergenceFreeSPHSloverCS.SetFloat("HashGridCellLength", HashGridCellLength);
@@ -69,33 +69,36 @@ namespace LODFluid
             Profiler.EndSample();
 
             ///无散迭代
-            Profiler.BeginSample("Divergence-free iteration");
-            for (int i = 0; i < vDivergenceFreeIterationCount; i++)
+            if(EnableDivergenceFreeSlover)
             {
-                Profiler.BeginSample("Compute density change");
-                ComputeDensityChange(
-                    vBackTarget,
-                    vTargetParticleIndirectArgment,
-                    vHashGridCellParticleCount,
-                    vHashGridCellParticleOffset,
-                    vTargetParticleDensityChangeCache,
-                    vTargetParticleClosestPointAndVolumeCache,
-                    vTargetParticleBoundaryVelocityBufferCache);
-                Profiler.EndSample();
+                Profiler.BeginSample("Divergence-free iteration");
+                for (int i = 0; i < vDivergenceFreeIterationCount; i++)
+                {
+                    Profiler.BeginSample("Compute density change");
+                    ComputeDensityChange(
+                        vBackTarget,
+                        vTargetParticleIndirectArgment,
+                        vHashGridCellParticleCount,
+                        vHashGridCellParticleOffset,
+                        vTargetParticleDensityChangeCache,
+                        vTargetParticleClosestPointAndVolumeCache,
+                        vTargetParticleBoundaryVelocityBufferCache);
+                    Profiler.EndSample();
 
-                Profiler.BeginSample("Solve divergence iteration");
-                SolveDivergenceIteration(
-                    vBackTarget,
-                    vTargetParticleIndirectArgment,
-                    vHashGridCellParticleCount,
-                    vHashGridCellParticleOffset,
-                    vTargetParticleDensityCache,
-                    vTargetParticleAlphaCache,
-                    vTargetParticleDensityChangeCache,
-                    vTargetParticleClosestPointAndVolumeCache);
+                    Profiler.BeginSample("Solve divergence iteration");
+                    SolveDivergenceIteration(
+                        vBackTarget,
+                        vTargetParticleIndirectArgment,
+                        vHashGridCellParticleCount,
+                        vHashGridCellParticleOffset,
+                        vTargetParticleDensityCache,
+                        vTargetParticleAlphaCache,
+                        vTargetParticleDensityChangeCache,
+                        vTargetParticleClosestPointAndVolumeCache);
+                    Profiler.EndSample();
+                }
                 Profiler.EndSample();
             }
-            Profiler.EndSample();
 
             ///施加其它力
             Profiler.BeginSample("Update velocity with no pressure force");

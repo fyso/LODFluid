@@ -16,10 +16,15 @@ namespace LODFluid
         public int PressureIterationCount = 6;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
+        public bool DivergenceFreeIteration = true;
         public bool LogSloverConverge = true;
 
         public int CurrrentParticleData = 0;
+
+        private float DivergenceFreeErrorSum = 0;
         public float DivergenceFreeError = 0;
+
+        private float PressureErrorSum = 0;
         public float PressureError = 0;
 
         private void OnDrawGizmos()
@@ -141,11 +146,11 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().Viscosity,
                     GPUGlobalParameterManager.GetInstance().Gravity,
                     UseVolumeMapBoundary,
-                    DivergenceIterationCount, PressureIterationCount
+                    DivergenceIterationCount, PressureIterationCount, DivergenceFreeIteration
                 );
             Profiler.EndSample();
 
-            if (LogSloverConverge)
+            if (LogSloverConverge && Time.frameCount <= 500)
             {
                 int[] ParticleIndirectArgumentCPU = new int[7];
                 GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ParticleIndirectArgumentCPU);
@@ -158,7 +163,8 @@ namespace LODFluid
                 {
                     DensityChangeSum += Mathf.Abs(DensityChange[i]);
                 }
-                DivergenceFreeError = (DivergenceFreeError + DensityChangeSum / CurrrentParticleData / Time.frameCount) / (1.0f / Time.frameCount + 1.0f);
+                DivergenceFreeErrorSum = DensityChangeSum / CurrrentParticleData;
+                DivergenceFreeError = DensityChangeSum / Time.frameCount;
 
                 float[] DensityAdv = new float[GPUGlobalParameterManager.GetInstance().Max3DParticleCount];
                 GPUResourceManager.GetInstance().Dynamic3DParticleDensityAdvBuffer.GetData(DensityAdv);
@@ -167,7 +173,8 @@ namespace LODFluid
                 {
                     Density_error_Sum += Mathf.Abs(DensityAdv[i] - 1.0f);
                 }
-                PressureError = (PressureError + Density_error_Sum / CurrrentParticleData / Time.frameCount) / (1.0f / Time.frameCount + 1.0f);
+                PressureErrorSum += Density_error_Sum / CurrrentParticleData;
+                PressureError = PressureErrorSum / Time.frameCount;
             }
         }
 
