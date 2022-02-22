@@ -69,7 +69,6 @@ namespace LODFluid
             Profiler.EndSample();
 
             ///无散迭代
-            ///TODO: Warm Start Slover
             Profiler.BeginSample("Divergence-free iteration");
             for (int i = 0; i < vDivergenceFreeIterationCount; i++)
             {
@@ -111,7 +110,6 @@ namespace LODFluid
             Profiler.EndSample();
 
             ///压力迭代
-            ///TODO: Warm Start Slover
             Profiler.BeginSample("Pressure iteration");
             for (int i = 0; i < vPressureIterationCount; i++)
             {

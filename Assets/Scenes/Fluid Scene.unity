@@ -366,7 +366,7 @@ MonoBehaviour:
   BoundaryObjects:
   - {fileID: 8164078560040880145}
   TimeStep: 0.033
-  Viscosity: 0.05
+  Viscosity: 0.15
   DivergenceIterationCount: 6
   PressureIterationCount: 6
   UseVolumeMapBoundary: 1

@@ -55,25 +55,6 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     //apply Boundary effect
     if (Dist <= 0.0f)
     {
-        //float3 Vel = TargetParticleVelocity_RW[i];
-        //float3 RelativeVel = Vel - BoundaryVel;
-        //float NDotRelVel = dot(Normal, RelativeVel);
-        //float3 NorVel = NDotRelVel * Normal;
-        //float3 TanVel = RelativeVel - NorVel;
-        //if (NDotRelVel < 0.0f)
-        //{
-        //    float R = 0.1f;
-        //    float Mu = 0.1f;
-        //    float3 DeltaNorVel = (-R - 1.0f) * NorVel;
-        //    float LengthT = length(TanVel);
-        //    if (LengthT > 0.0f)
-        //    {
-        //        double FrictionScale = max(1.0f - Mu * length(DeltaNorVel) / LengthT, 0.0f);
-        //        TanVel *= FrictionScale * 0.1f;
-        //    }
-        //    NorVel = -R * NorVel;
-        //    TargetParticleVelocity_RW[i] = NorVel + TanVel + BoundaryVel;
-        //}
         TargetParticleVelocity_RW[i] = float3(0.0f, 0.0f, 0.0f);
         TargetParticlePosition_RW[i] = Pos - Dist * Normal;
     }

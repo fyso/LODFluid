@@ -1,0 +1,193 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel divergenceLoop
+
+float3 HashGridMin;
+float HashGridCellLength;
+uint HashGridResolutionX;
+uint HashGridResolutionY;
+uint HashGridResolutionZ;
+
+float SearchRadius;
+float ParticleVolume;
+float TimeStep;
+float Viscosity;
+float Gravity;
+
+bool UseVolumeMapBoundary;
+
+StructuredBuffer<uint> TargetParticleIndirectArgment_R;
+
+StructuredBuffer<uint> HashGridCellParticleCount_R;
+StructuredBuffer<uint> HashGridCellParticleOffset_R;
+
+StructuredBuffer<float3> TargetParticlePosition_R;
+RWStructuredBuffer<float3> TargetParticlePosition_RW;
+
+StructuredBuffer<float3> TargetParticleVelocity_R;
+RWStructuredBuffer<float3> TargetParticleVelocity_RW;
+
+StructuredBuffer<float> Density_R;
+RWStructuredBuffer<float> Density_RW;
+
+StructuredBuffer<float> Alpha_R;
+RWStructuredBuffer<float> Alpha_RW;
+
+StructuredBuffer<float> DensityChange_R;
+RWStructuredBuffer<float> DensityChange_RW;
+
+StructuredBuffer<float> DensityAdv_R;
+RWStructuredBuffer<float> DensityAdv_RW;
+
+StructuredBuffer<float4> ParticleClosestPointAndVolume_R;
+StructuredBuffer<float3> ParticleBoundaryVelocity_R;
+
+#define FOR_EACH_ADJCELL(CODE) \
+[unroll]\
+for (int x = -1; x <= 1; x++)\
+{\
+    for (int y = -1; y <= 1; y++)\
+    {\
+        for (int z = -1; z <= 1; z++)\
+        {\
+            int3 AdjCell = Cell3DIndex + int3(x, y, z);\
+            if (AdjCell.x < 0 || AdjCell.y < 0 || AdjCell.z < 0 ||\
+                AdjCell.x >= (int) HashGridResolutionX || AdjCell.y >= (int) HashGridResolutionY || AdjCell.z >= (int) HashGridResolutionZ)\
+                continue;\
+            uint CellLinerIndex = computeMorton3D((uint3) AdjCell);\
+            uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];\
+            if (CellParticleCount == 0)\
+                continue;\
+            uint CellParticleStart = CellLinerIndex == 0 ? 0 : HashGridCellParticleOffset_R[CellLinerIndex - 1];\
+            uint CellParticleEnd = CellParticleStart + CellParticleCount;\
+            for (uint c = CellParticleStart;c < CellParticleEnd; c++)\
+            {\
+                    CODE\
+            }\
+        }\
+    }\
+}
+
+#define LOCAL_CACHE_SIZE 512
+#define BLOCK_SIZE 512
+groupshared float3 LocalPositionCache[LOCAL_CACHE_SIZE];
+groupshared float3 LocalVelocityCache[LOCAL_CACHE_SIZE];
+groupshared float LocalDensityCache[LOCAL_CACHE_SIZE];
+groupshared float LocalAlphaCache[LOCAL_CACHE_SIZE];
+
+groupshared uint LocalMarkCache[LOCAL_CACHE_SIZE];
+groupshared float LocalDensityAdvCache[LOCAL_CACHE_SIZE];
+
+uint ThreadOffset;
+uint InBlockIterationCount;
+
+/* try to classify particle in block into different type and only update particles which does not rely on extern particle in each loop. */
+[numthreads(BLOCK_SIZE, 1, 1)]
+void divergenceLoop(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint CurrentParticleIndex = (ThreadIdx + GroupIdx * BLOCK_SIZE + ThreadOffset) % TargetParticleIndirectArgment_R[ParticleCountArgumentOffset];
+    uint BlockStart = GroupIdx * BLOCK_SIZE + ThreadOffset;
+    uint BlockEnd = (GroupIdx + 1) * BLOCK_SIZE - 1 + ThreadOffset;
+    
+    float3 CenterPos = TargetParticlePosition_R[CurrentParticleIndex];
+    LocalPositionCache[ThreadIdx] = CenterPos;
+    float3 CenterVel = TargetParticleVelocity_RW[CurrentParticleIndex];
+    LocalVelocityCache[ThreadIdx] = CenterVel;
+    float CenterDensity = Density_R[CurrentParticleIndex];
+    LocalDensityCache[ThreadIdx] = CenterDensity;
+    float CenterAlpha = Alpha_R[CurrentParticleIndex];
+    LocalAlphaCache[ThreadIdx] = CenterAlpha;
+    
+    float4 CenterClosestPointAndVolume = ParticleClosestPointAndVolume_R[CurrentParticleIndex];
+    float3 CenterBoundaryVelocity = ParticleBoundaryVelocity_R[CurrentParticleIndex];
+    
+    int3 Cell3DIndex = (CenterPos - HashGridMin) / HashGridCellLength;
+    float CurrDensityDelta = 0.0f;
+    for (int k = 0; k < InBlockIterationCount * 2; k++)
+    {
+        FOR_EACH_ADJCELL(
+            bool InBlock = c >= BlockStart && c < BlockEnd;
+            float3 NeighborPos = float3(0, 0, 0);
+            if (InBlock)
+            {
+                NeighborPos = LocalPositionCache[c - BlockStart];
+            }
+            else
+            {
+                NeighborPos = TargetParticlePosition_R[c];
+            }
+            float3 RelativePos = CenterPos - NeighborPos;
+            float Dist = length(RelativePos);
+            if (Dist < SearchRadius && Dist > 0.0f)
+            {
+                if (!InBlock || LocalMarkCache[c - BlockStart] == 1)
+                {
+                    LocalMarkCache[ThreadIdx] = 1;
+                }
+            }
+        )
+        GroupMemoryBarrierWithGroupSync();
+        
+        if (LocalMarkCache[ThreadIdx] != 1)
+        {
+            //All neighbors of current particle are in shared memory and up-to-date
+            if (k % 2 == 0)
+            {
+                //compute DensityAdv
+                FOR_EACH_ADJCELL(
+                    float3 NeighborPos = LocalPositionCache[c - BlockStart];
+                    float3 RelativePos = CenterPos - NeighborPos;
+                    float Dist = length(RelativePos);
+                    if (Dist < SearchRadius && Dist > 0.0f)
+                    {
+                        float3 NeighborVel = LocalVelocityCache[c - BlockStart];
+                        CurrDensityDelta += ParticleVolume * dot((CenterVel - NeighborVel), computeCubicKernelGradW(RelativePos, SearchRadius));
+                    }
+                )
+            
+                if (CenterClosestPointAndVolume.w > 0)
+                {
+                    CurrDensityDelta += CenterClosestPointAndVolume.w * dot((CenterVel - CenterBoundaryVelocity), computeCubicKernelGradW(CenterPos - CenterClosestPointAndVolume.xyz, SearchRadius));
+                }
+                
+                CurrDensityDelta = LocalDensityCache[ThreadIdx] + TimeStep * CurrDensityDelta;
+                LocalDensityAdvCache[ThreadIdx] = max(CurrDensityDelta, 1.0f);
+            }
+            else
+            {
+                //correct velocity
+                float CenterDensity = LocalDensityCache[ThreadIdx];
+                float CenterKi = (LocalDensityAdvCache[ThreadIdx] - 1.0f) * CenterAlpha * pow(1.0f / TimeStep, 2);
+                
+                FOR_EACH_ADJCELL(
+                    float3 NeighborPos = LocalPositionCache[c - BlockStart];
+                    float3 RelativePos = CenterPos - NeighborPos;
+                    float Dist = length(RelativePos);
+                    if (Dist < SearchRadius && Dist > 0.0f)
+                    {
+                        uint SharedMemoryOffset = c - BlockStart;
+                        float3 NeighborVel = LocalVelocityCache[SharedMemoryOffset];
+                        float NeighborDensity = LocalDensityCache[SharedMemoryOffset];
+                        float NeighborKj = (LocalDensityAdvCache[SharedMemoryOffset] - 1.0f) * Alpha_R[SharedMemoryOffset] * pow(1.0f / TimeStep, 2);
+                        float Sum = CenterKi + NeighborKj;
+                        if (abs(Sum) > EPSILON)
+                        {
+                            CenterVel += TimeStep * Sum * ParticleVolume * computeCubicKernelGradW(RelativePos, SearchRadius);
+                        }
+                    }
+                )
+            
+                if (CenterClosestPointAndVolume.w > 0)
+                {
+                    CenterVel += TimeStep * CenterKi * CenterClosestPointAndVolume.w * computeCubicKernelGradW(CenterPos - CenterClosestPointAndVolume.xyz, SearchRadius);
+                }
+                
+                LocalVelocityCache[ThreadIdx] = CenterVel;
+            }
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+    
+    TargetParticleVelocity_RW[CurrentParticleIndex] = LocalVelocityCache[ThreadIdx];
+}
