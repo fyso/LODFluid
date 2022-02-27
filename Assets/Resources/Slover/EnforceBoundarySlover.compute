@@ -21,6 +21,7 @@ uniform float4x4 Rotation;
 uniform float4x4 InvRotation;
 
 uniform float3 BoundaryVel;
+uniform float ParticleRadius;
 
 float3 estimateNormal(float3 p)
 {
@@ -48,14 +49,17 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     float3 Offset = ObjectPos - SDFDomainMin;
     float3 UVCoord = Offset / SDFCellSize / (float3) SDFResolution;
     float Dist = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, UVCoord, 0);
-    float3 Normal = normalize(estimateNormal(UVCoord));
-    
-    Normal = mul(Rotation, float4(Normal, 1.0f)).xyz;
-    
+    float3 Normal = estimateNormal(UVCoord);
     //apply Boundary effect
-    if (Dist <= 0.0f)
+    if (Dist <= 0.0f && length(Normal) > EPSILON)
     {
+        Normal = mul(Rotation, float4(Normal, 1.0f)).xyz;
+        Normal = normalize(Normal);
+        
+        float Delta = 2.0f * ParticleRadius - Dist;
+        Delta = min(Delta, 0.1f * ParticleRadius);
+        
         TargetParticleVelocity_RW[i] = float3(0.0f, 0.0f, 0.0f);
-        TargetParticlePosition_RW[i] = Pos - Dist * Normal;
+        TargetParticlePosition_RW[i] = Pos + Delta * Normal;
     }
 }

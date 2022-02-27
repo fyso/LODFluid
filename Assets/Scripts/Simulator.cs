@@ -17,6 +17,7 @@ namespace LODFluid
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;
+        public bool FasterSlover = false;
         public bool LogSloverConverge = true;
 
         public int CurrrentParticleData = 0;
@@ -118,7 +119,8 @@ namespace LODFluid
                     EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
                             BoundaryObjects,
                             GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-                            GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer
+                            GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                            GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
                         );
                 }
                 Profiler.EndSample();
@@ -146,7 +148,7 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().Viscosity,
                     GPUGlobalParameterManager.GetInstance().Gravity,
                     UseVolumeMapBoundary,
-                    DivergenceIterationCount, PressureIterationCount, DivergenceFreeIteration
+                    DivergenceIterationCount, PressureIterationCount, DivergenceFreeIteration, FasterSlover
                 );
             Profiler.EndSample();
 

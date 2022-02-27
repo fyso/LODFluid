@@ -905,7 +905,7 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
     float CurrDist = length(DisplacementVector);
     if (VolumeData > 0 && NormalAndDist.w > 0.0f && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
     {
-        float3 CurrClosestPoint = CenterPos - normalize(DisplacementVector) * /*max(*/CurrDist/* + 0.5f * ParticleRadius, 2.0f * ParticleRadius)*/;
+        float3 CurrClosestPoint = CenterPos - normalize(DisplacementVector) * max(CurrDist + 0.5f * ParticleRadius, 2.0f * ParticleRadius);
         
         float3 OldClosestPoint = ClosestPointAndVolume_RW[i].xyz;
         float OldDist = length(CenterPos - OldClosestPoint);

@@ -18,8 +18,11 @@ namespace LODFluid
         public void ApplyBoundaryInfluence(
             List<GameObject> vBoundaryObjects,
             ParticleBuffer vTargetParticle, 
-            ComputeBuffer vParticleCountArgment)
+            ComputeBuffer vParticleCountArgment,
+            float vParticleRadius)
         {
+            ForceBasedBoundaryCS.SetFloat("ParticleRadius", vParticleRadius);
+
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticleIndirectArgment_R", vParticleCountArgment);
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticlePosition_RW", vTargetParticle.ParticlePositionBuffer);
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticleVelocity_RW", vTargetParticle.ParticleVelocityBuffer);
