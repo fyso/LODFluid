@@ -13,10 +13,11 @@ namespace LODFluid
 
         public uint SPHThreadSize = 512;
 
-        public uint Max3DParticleCount = 500000;
+        public uint Max3DParticleCount = 100000;
         public float Dynamic3DParticleRadius = 0.25f;
         public float TimeStep = 0.01666667f;
         public float Viscosity = 0.01f;
+        public float SurfaceTension = 0.05f;
         public float Gravity = 9.8f;
         public float ParticleVolume { get { return 0.8f * Mathf.Pow(2.0f * Dynamic3DParticleRadius, 3.0f); } }
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }

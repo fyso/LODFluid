@@ -49,6 +49,7 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleAlphaBuffer;
         public ComputeBuffer Dynamic3DParticleDensityChangeBuffer;
         public ComputeBuffer Dynamic3DParticleDensityAdvBuffer;
+        public ComputeBuffer Dynamic3DParticleNormalBuffer;
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
 
@@ -65,7 +66,9 @@ namespace LODFluid
             Dynamic3DParticleAlphaBuffer.Release();
             Dynamic3DParticleDensityChangeBuffer.Release();
             Dynamic3DParticleDensityAdvBuffer.Release();
+            Dynamic3DParticleNormalBuffer.Release();
             Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
+            Dynamic3DParticleBoundaryVelocityBuffer.Release();
         }
 
         public GPUResourceManager()
@@ -109,6 +112,10 @@ namespace LODFluid
             Dynamic3DParticleDensityAdvBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float));
+
+            Dynamic3DParticleNormalBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float) * 3);
 
             Dynamic3DParticleClosestPointAndVolumeBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,

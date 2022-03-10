@@ -6,7 +6,7 @@ namespace LODFluid
     public class DivergenceFreeSPHSloverInvoker : Singleton<DivergenceFreeSPHSloverInvoker>
     {
         private ComputeShader DivergenceFreeSPHSloverCS;
-        private int computeAlphaAndDensityKernel;
+        private int computeFluidPropertyKernel;
         private int computeDensityChangeKernel;
         private int sloveDivergenceIterationKernel;
         private int computeDensityAdvKernel;
@@ -20,7 +20,7 @@ namespace LODFluid
         public DivergenceFreeSPHSloverInvoker()
         {
             DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Slover/DivergenceFreeSPHSlover");
-            computeAlphaAndDensityKernel = DivergenceFreeSPHSloverCS.FindKernel("computeAlphaAndDensity");
+            computeFluidPropertyKernel = DivergenceFreeSPHSloverCS.FindKernel("computeFluidProperty");
             computeDensityChangeKernel = DivergenceFreeSPHSloverCS.FindKernel("computeDensityChange");
             sloveDivergenceIterationKernel = DivergenceFreeSPHSloverCS.FindKernel("solveDivergenceIteration");
             computeDensityAdvKernel = DivergenceFreeSPHSloverCS.FindKernel("computeDensityAdv");
@@ -42,10 +42,11 @@ namespace LODFluid
             ComputeBuffer vTargetParticleAlphaCache,
             ComputeBuffer vTargetParticleDensityChangeCache,
             ComputeBuffer vTargetParticleDensityAdvCache,
+            ComputeBuffer vTargetParticleNormalCache,
             ComputeBuffer vTargetParticleClosestPointAndVolumeCache,
             ComputeBuffer vTargetParticleBoundaryVelocityBufferCache,
             Vector3 vHashGridMin, float HashGridCellLength, Vector3Int vHashGridResolution,
-            float vSearchRadius, float vParticleVolume, float vTimeStep, float vViscosity, float vGravity, bool vUseVolumeMapBoundary,
+            float vSearchRadius, float vParticleVolume, float vTimeStep, float vViscosity, float vSurfaceTension, float vGravity, bool vUseVolumeMapBoundary,
             int vDivergenceFreeIterationCount = 3, int vPressureIterationCount = 2, bool EnableDivergenceFreeSlover = true, bool EnableFasterSlover = false)
         {
             DivergenceFreeSPHSloverCS.SetFloats("HashGridMin", vHashGridMin.x, vHashGridMin.y, vHashGridMin.z);
@@ -57,6 +58,7 @@ namespace LODFluid
             DivergenceFreeSPHSloverCS.SetFloat("ParticleVolume", vParticleVolume);
             DivergenceFreeSPHSloverCS.SetFloat("TimeStep", vTimeStep);
             DivergenceFreeSPHSloverCS.SetFloat("Viscosity", vViscosity);
+            DivergenceFreeSPHSloverCS.SetFloat("SurfaceTension", vSurfaceTension);
             DivergenceFreeSPHSloverCS.SetFloat("Gravity", vGravity);
             DivergenceFreeSPHSloverCS.SetBool("UseVolumeMapBoundary", vUseVolumeMapBoundary);
 
@@ -74,13 +76,14 @@ namespace LODFluid
 
             ///预计算迭代不变值（密度与Alpha）
             Profiler.BeginSample("Compute alpha and density");
-            ComputeAlphaAndDensity(
+            ComputeFluidProperty(
                 vBackTarget,
                 vTargetParticleIndirectArgment,
                 vHashGridCellParticleCount,
                 vHashGridCellParticleOffset,
                 vTargetParticleDensityCache,
                 vTargetParticleAlphaCache,
+                vTargetParticleNormalCache,
                 vTargetParticleClosestPointAndVolumeCache);
             Profiler.EndSample();
 
@@ -124,6 +127,7 @@ namespace LODFluid
                 vHashGridCellParticleCount,
                 vHashGridCellParticleOffset,
                 vTargetParticleDensityCache,
+                vTargetParticleNormalCache,
                 vTargetParticleClosestPointAndVolumeCache, 
                 vTargetParticleBoundaryVelocityBufferCache);
             Profiler.EndSample();
@@ -188,24 +192,26 @@ namespace LODFluid
             Profiler.EndSample();
         }
 
-        private void ComputeAlphaAndDensity(
+        private void ComputeFluidProperty(
             ParticleBuffer vTarget,
             ComputeBuffer vTargetParticleIndirectArgment,
             ComputeBuffer vHashGridCellParticleCount,
             ComputeBuffer vHashGridCellParticleOffset,
             ComputeBuffer vTargetParticleDensityCache,
             ComputeBuffer vTargetParticleAlphaCache,
+            ComputeBuffer vTargetParticleNormalCache,
             ComputeBuffer vTargetParticleClosestPointAndVolumeCache)
         {
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "TargetParticleIndirectArgment_R", vTargetParticleIndirectArgment);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "TargetParticlePosition_R", vTarget.ParticlePositionBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "HashGridCellParticleCount_R", vHashGridCellParticleCount);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "HashGridCellParticleOffset_R", vHashGridCellParticleOffset);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "Density_RW", vTargetParticleDensityCache);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "Alpha_RW", vTargetParticleAlphaCache);
-            DivergenceFreeSPHSloverCS.SetBuffer(computeAlphaAndDensityKernel, "ParticleClosestPointAndVolume_R", vTargetParticleClosestPointAndVolumeCache);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "TargetParticleIndirectArgment_R", vTargetParticleIndirectArgment);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "TargetParticlePosition_R", vTarget.ParticlePositionBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "HashGridCellParticleCount_R", vHashGridCellParticleCount);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "HashGridCellParticleOffset_R", vHashGridCellParticleOffset);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "Density_RW", vTargetParticleDensityCache);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "Alpha_RW", vTargetParticleAlphaCache);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "Normal_RW", vTargetParticleNormalCache);
+            DivergenceFreeSPHSloverCS.SetBuffer(computeFluidPropertyKernel, "ParticleClosestPointAndVolume_R", vTargetParticleClosestPointAndVolumeCache);
 
-            DivergenceFreeSPHSloverCS.DispatchIndirect(computeAlphaAndDensityKernel, vTargetParticleIndirectArgment);
+            DivergenceFreeSPHSloverCS.DispatchIndirect(computeFluidPropertyKernel, vTargetParticleIndirectArgment);
         }
 
         private void ComputeDensityChange(
@@ -304,6 +310,7 @@ namespace LODFluid
             ComputeBuffer vHashGridCellParticleCount,
             ComputeBuffer vHashGridCellParticleOffset,
             ComputeBuffer vTargetParticleDensityCache,
+            ComputeBuffer vTargetParticleNormalCache,
             ComputeBuffer vTargetParticleClosestPointAndVolumeCache,
             ComputeBuffer vTargetParticleBoundaryVelocityBufferCache)
         {
@@ -313,6 +320,7 @@ namespace LODFluid
             DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "HashGridCellParticleCount_R", vHashGridCellParticleCount);
             DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "HashGridCellParticleOffset_R", vHashGridCellParticleOffset);
             DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "Density_R", vTargetParticleDensityCache);
+            DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "Normal_R", vTargetParticleNormalCache);
             DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "ParticleClosestPointAndVolume_R", vTargetParticleClosestPointAndVolumeCache);
             DivergenceFreeSPHSloverCS.SetBuffer(updateVelocityWithNoPressureForceKernel, "ParticleBoundaryVelocity_R", vTargetParticleBoundaryVelocityBufferCache);
 

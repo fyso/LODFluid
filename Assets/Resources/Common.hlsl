@@ -10,6 +10,7 @@
 #define EPSILON 1e-7f
 #define PI 3.14159274F
 #define FLT_MAX 3.402823466e+38F
+#define Density0 1000.0f
 
 /* compute morton code */
 uint expandBits3D(uint v)
@@ -77,6 +78,20 @@ float3 computeCubicKernelGradW(float3 vR, float vCubicRadius)
         Result = float3(0.0f, 0.0f, 0.0f);
     }
 	
+    return Result;
+}
+
+float computeAdhesionKernelW(float vDiatance, float vRadius)
+{
+    float Result = 0.0f;
+    float K = 0.007f / pow(vRadius, 3.25f);
+    float Distance2 = vDiatance * vDiatance;
+    float Radius2 = vRadius * vRadius;
+    if (Distance2 < Radius2)
+    {
+        if (vDiatance > 0.5f * vRadius)
+            Result = K * pow(-4.0f * Distance2 / vRadius + 6.0f * vDiatance - 2.0f * vRadius, 0.25f);
+    }
     return Result;
 }
 
