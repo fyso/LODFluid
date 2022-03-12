@@ -139,9 +139,6 @@ public class Simulation : MonoBehaviour
     private Vector4 _inputControls;
     private Material _copyMat;
 
-    //SPH Simulation
-    private LODFluid.DFSPHSimulator SPHSimulator;
-
     void Start()
     {
         Camera.main.depthTextureMode = DepthTextureMode.Depth;
@@ -150,12 +147,6 @@ public class Simulation : MonoBehaviour
 
         // Set everything up
         Initialize();
-
-        SPHSimulator = GetComponent<LODFluid.DFSPHSimulator>();
-        if(SPHSimulator == null)
-        {
-            Debug.LogError("no LODFluid.Simulator Component!");
-        }
     }
         
     void Update()
