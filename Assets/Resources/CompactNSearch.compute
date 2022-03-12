@@ -6,6 +6,7 @@
 
 float3 HashGridMin;
 float HashGridCellLength;
+uint3 HashGridResolution;
 
 StructuredBuffer<uint> ParticleIndrectArgment_R;
 
@@ -24,29 +25,40 @@ RWStructuredBuffer<uint> ParticleCellIndex_RW;
 StructuredBuffer<uint> HashGridCellParticleOffset_R;
 RWStructuredBuffer<uint> HashGridCellParticleCount_RW;
 
+StructuredBuffer<uint> ParticleFilter_R;
+RWStructuredBuffer<uint> ParticleFilter_RW;
+
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void insertParticleIntoHashGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset] || ParticleFilter_RW[i] == 0)
         return;
-	
     float3 Postion = ParticlePosition_R[i];
-    uint3 Cell3DIndex = uint3((Postion - HashGridMin) / HashGridCellLength);
-    uint CellLinerIndex = computeMorton3D(Cell3DIndex);
-
-    ParticleCellIndex_RW[i] = CellLinerIndex;
+	
+    float3 HashGridMax = HashGridMin + HashGridCellLength * HashGridResolution;
+    if (any(Postion < HashGridMin) || any(Postion >= HashGridMax))
+    {
+        ParticleFilter_RW[i] = 0;
+    }
+    else
+    {
+        ParticleFilter_RW[i] = 1;
     
-    uint OriginValue;
-    InterlockedAdd(HashGridCellParticleCount_RW[CellLinerIndex], 1, OriginValue);
-    ParticleInnerSortIndex_RW[i] = OriginValue;
+        uint3 Cell3DIndex = uint3((Postion - HashGridMin) / HashGridCellLength);
+        uint CellLinerIndex = computeMorton3D(Cell3DIndex);
+        ParticleCellIndex_RW[i] = CellLinerIndex;
+        uint OriginValue;
+        InterlockedAdd(HashGridCellParticleCount_RW[CellLinerIndex], 1, OriginValue);
+        ParticleInnerSortIndex_RW[i] = OriginValue;
+    }
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void countingSortFull(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset] || ParticleFilter_R[i] == 0)
         return;
     
     uint CellLinerIndex = ParticleCellIndex_R[i];

@@ -901,7 +901,8 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
     float3 ObjectPos = mul(InvRotation, float4(CenterPos - Translate, 1.0f)).xyz;
     float VolumeData = interpolateScalar(VolumeArray_RW, ObjectPos);
     float4 NormalAndDist = interpolateGradAndScalar(SignedDistanceArray_RW, ObjectPos);
-    float3 DisplacementVector = mul(Rotation, float4(NormalAndDist.w * normalize(NormalAndDist.xyz), 1.0f)).xyz;
+    NormalAndDist.xyz = mul(Rotation, float4(normalize(NormalAndDist.xyz), 1.0f)).xyz;
+    float3 DisplacementVector = NormalAndDist.w * normalize(NormalAndDist.xyz);
     float CurrDist = length(DisplacementVector);
     if (VolumeData > 0 && NormalAndDist.w > 0.0f && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
     {
@@ -913,7 +914,10 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
         if (CurrDist < OldDist)
         {
             ClosestPointAndVolume_RW[i] = float4(CurrClosestPoint, VolumeData);
-            BoundaryVelocity_RW[i] = BoundaryVelocity;
+            
+            float3 Nor = dot(BoundaryVelocity, normalize(DisplacementVector)) * normalize(DisplacementVector);
+            float3 Tan = BoundaryVelocity - Nor;
+            BoundaryVelocity_RW[i] = dot(BoundaryVelocity, Nor) * BoundaryVelocity;
         }
     }
 }

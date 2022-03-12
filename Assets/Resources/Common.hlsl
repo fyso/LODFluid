@@ -2,6 +2,7 @@
 #define SPH2D_INCLUDE
 
 #define SPH_THREAD_NUM 512
+#define THREAD_NUM_2D 32
 
 #define ParticleXGridCountArgumentOffset 0
 #define ParticleYGridCountArgumentOffset 1

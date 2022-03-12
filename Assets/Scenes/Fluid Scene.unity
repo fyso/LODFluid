@@ -360,8 +360,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: -24.78, y: 1.61, z: -7.73}
-  WaterGenerateResolution: {x: 41, y: 14, z: 32}
+  WaterGeneratePosition: {x: -25.86, y: -11.4, z: -7.73}
+  WaterGenerateResolution: {x: 41, y: 44, z: 32}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 8164078560040880145}
@@ -369,8 +369,6 @@ MonoBehaviour:
   Viscosity: 0.006
   SurfaceTension: 0.05
   Gravity: 9.8
-  DivergenceIterationCount: 3
-  PressureIterationCount: 3
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
   DivergenceFreeIteration: 1
@@ -668,7 +666,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1c828ac0a35bae42be096323da53396, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ControllerForceFactor: 10.7
+  ControllerForceFactor: 1.5
 --- !u!4 &9174225436370058590
 Transform:
   m_ObjectHideFlags: 0

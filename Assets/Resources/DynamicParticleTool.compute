@@ -4,6 +4,7 @@
 #pragma kernel addParticleBlock
 #pragma kernel updateParticleCountArgment
 #pragma kernel scatterParticleData
+#pragma kernel updateParticleNarrowCountArgment
 
 RWStructuredBuffer<int> ParticleCountArgment_RW;
 RWStructuredBuffer<float3> ParticlePosition_RW;
@@ -40,6 +41,8 @@ void addParticleBlock(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     uint x = xp % WaterBlockResX;
     ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + float3(x, y, z) * ParticleRadius * 2.0f;
     ParticleVelocity_RW[CurrParticleCount + i] = float3(0, 0, 0);
+    ParticleFilter_RW[CurrParticleCount + i] = 1;
+
 }
 
 [numthreads(1, 1, 1)]
@@ -56,8 +59,6 @@ void updateParticleCountArgment(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : 
 void scatterParticleData(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleCountArgment_RW[ParticleCountArgumentOffset])
-        return;
     
     uint CurrTargetOffset = ParticleScatterOffset_R[i] - 1;
     uint PrevTargetOffset = i == 0 ? 0 : ParticleScatterOffset_R[i - 1] - 1;
@@ -66,11 +67,15 @@ void scatterParticleData(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_Grou
         NarrowParticlePosition_RW[CurrTargetOffset] = TargetParticlePosition_R[i];
         NarrowParticleVelocity_RW[CurrTargetOffset] = TargetParticleVelocity_R[i];
     }
+}
+
+[numthreads(1, 1, 1)]
+void updateParticleNarrowCountArgment(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ParticleCountArgment_RW[ParticleCountArgumentOffset] - 1;
     
-    if (i == ParticleCountArgment_RW[ParticleCountArgumentOffset] - 1)
-    {
-        int NewParticleCount = CurrTargetOffset + 1;
-        ParticleCountArgment_RW[ParticleCountArgumentOffset] = NewParticleCount;
-        ParticleCountArgment_RW[ParticleXGridCountArgumentOffset] = (int) ceil((float) NewParticleCount / SPH_THREAD_NUM);
-    }
+    uint CurrTargetOffset = ParticleScatterOffset_R[i] - 1;
+    int NewParticleCount = CurrTargetOffset + 1;
+    ParticleCountArgment_RW[ParticleCountArgumentOffset] = NewParticleCount;
+    ParticleCountArgment_RW[ParticleXGridCountArgumentOffset] = (int) ceil((float) NewParticleCount / SPH_THREAD_NUM);
 }

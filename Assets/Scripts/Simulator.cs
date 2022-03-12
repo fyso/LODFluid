@@ -23,8 +23,8 @@ namespace LODFluid
         [Range(0, 10f)]
         public float Gravity = 9.8f;
 
-        public int DivergenceIterationCount = 6;
-        public int PressureIterationCount = 6;
+        private int DivergenceIterationCount = 3;
+        private int PressureIterationCount = 3;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;
@@ -64,6 +64,7 @@ namespace LODFluid
             DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
                 GPUResourceManager.GetInstance().Dynamic3DParticle,
                 GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUResourceManager.GetInstance().Dynamic3DParticleFilterBuffer,
                 WaterGeneratePosition,
                 WaterGenerateResolution);
 
@@ -84,6 +85,7 @@ namespace LODFluid
                 DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUResourceManager.GetInstance().Dynamic3DParticleFilterBuffer,
                     WaterGeneratePosition,
                     WaterGenerateResolution);
 
@@ -132,10 +134,21 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleDensityBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleFilterBuffer,
                     GPUResourceManager.GetInstance().ScanTempBuffer1,
                     GPUResourceManager.GetInstance().ScanTempBuffer2,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
-                    GPUGlobalParameterManager.GetInstance().HashCellLength);
+                    GPUGlobalParameterManager.GetInstance().HashCellLength,
+                    GPUGlobalParameterManager.GetInstance().HashResolution);
+            Profiler.EndSample();
+
+            Profiler.BeginSample("Narrow");
+            DynamicParticleToolInvoker.GetInstance().NarrowParticleData(
+                    GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                    GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleFilterBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleScatterOffsetBuffer);
             Profiler.EndSample();
 
             if (UseVolumeMapBoundary)
@@ -143,7 +156,7 @@ namespace LODFluid
                 Profiler.BeginSample("Query closest point and volume");
                 VolumeMapBoundarySloverInvoker.GetInstance().QueryClosestPointAndVolume(
                         GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                        GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
                         BoundaryObjects,
                         GPUResourceManager.GetInstance().Volume,
                         GPUResourceManager.GetInstance().SignedDistance,
@@ -161,7 +174,7 @@ namespace LODFluid
                 {
                     EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
                             BoundaryObjects,
-                            GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                            GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
                             GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                             GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
                         );
@@ -171,7 +184,7 @@ namespace LODFluid
 
             Profiler.BeginSample("Slove divergence-free SPH");
             DivergenceFreeSPHSloverInvoker.GetInstance().Slove(
-                    GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                    GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,

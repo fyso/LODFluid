@@ -9,16 +9,22 @@ namespace LODFluid
         private ComputeShader DynamicParticleToolCS;
         private int AddParticleBlockKernel;
         private int UpdateParticleCountArgmentKernel;
+        private int ScatterParticleDataKernel;
+        private int UpdateParticleNarrowCountArgmentKernel;
+
         public DynamicParticleToolInvoker()
         {
             DynamicParticleToolCS = Resources.Load<ComputeShader>("DynamicParticleTool");
             AddParticleBlockKernel = DynamicParticleToolCS.FindKernel("addParticleBlock");
             UpdateParticleCountArgmentKernel = DynamicParticleToolCS.FindKernel("updateParticleCountArgment");
+            ScatterParticleDataKernel = DynamicParticleToolCS.FindKernel("scatterParticleData");
+            UpdateParticleNarrowCountArgmentKernel = DynamicParticleToolCS.FindKernel("updateParticleNarrowCountArgment");
         }
 
         public void AddParticleBlock(
             ParticleBuffer voTarget,
             ComputeBuffer voParticleIndirectArgumentBuffer,
+            ComputeBuffer voParticleFilterBuffer,
             Vector3 vWaterGeneratePos,
             Vector3Int vWaterBlockRes)
         {
@@ -33,6 +39,7 @@ namespace LODFluid
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleCountArgment_RW", voParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", voTarget.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", voTarget.ParticleVelocityBuffer);
+            DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleFilter_RW", voParticleFilterBuffer);
             DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / GPUGlobalParameterManager.GetInstance().SPHThreadSize), 1, 1);
             
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
@@ -43,11 +50,28 @@ namespace LODFluid
 
         public void NarrowParticleData(
             ParticleBuffer vTargetParticleBuffer,
-            ParticleBuffer vNarrowParticleBuffer,
+            ParticleBuffer voNarrowParticleBuffer,
             ComputeBuffer vParticleIndirectArgumentBuffer,
             ComputeBuffer vParticleFilterBuffer,
             ComputeBuffer vParticleScatterOffsetCache)
         {
+            GPUOperation.GetInstance().Scan(
+                vParticleFilterBuffer.count,
+                vParticleFilterBuffer,
+                vParticleScatterOffsetCache,
+                GPUResourceManager.GetInstance().ScanTempBuffer1,
+                GPUResourceManager.GetInstance().ScanTempBuffer2);
+
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "ParticleScatterOffset_R", vParticleScatterOffsetCache);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticlePosition_RW", voNarrowParticleBuffer.ParticlePositionBuffer);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticleVelocity_RW", voNarrowParticleBuffer.ParticleVelocityBuffer);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticlePosition_R", vTargetParticleBuffer.ParticlePositionBuffer);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticleVelocity_R", vTargetParticleBuffer.ParticleVelocityBuffer);
+            DynamicParticleToolCS.DispatchIndirect(ScatterParticleDataKernel, vParticleIndirectArgumentBuffer);
+
+            DynamicParticleToolCS.SetBuffer(UpdateParticleNarrowCountArgmentKernel, "ParticleScatterOffset_R", vParticleScatterOffsetCache);
+            DynamicParticleToolCS.SetBuffer(UpdateParticleNarrowCountArgmentKernel, "ParticleCountArgment_RW", vParticleIndirectArgumentBuffer);
+            DynamicParticleToolCS.Dispatch(UpdateParticleNarrowCountArgmentKernel, 1, 1, 1);
 
         }
     }

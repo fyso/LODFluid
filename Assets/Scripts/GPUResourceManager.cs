@@ -30,6 +30,7 @@ namespace LODFluid
     {
         public ParticleBuffer Dynamic3DParticle;
         public ParticleBuffer DynamicSorted3DParticle;
+        public ParticleBuffer DynamicNarrow3DParticle;
 
         public List<CubicMap> SignedDistance;
         public List<CubicMap> Volume;
@@ -52,6 +53,8 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleNormalBuffer;
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
+        public ComputeBuffer Dynamic3DParticleFilterBuffer;
+        public ComputeBuffer Dynamic3DParticleScatterOffsetBuffer;
 
         ~GPUResourceManager()
         {
@@ -69,6 +72,8 @@ namespace LODFluid
             Dynamic3DParticleNormalBuffer.Release();
             Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
             Dynamic3DParticleBoundaryVelocityBuffer.Release();
+            Dynamic3DParticleFilterBuffer.Release();
+            Dynamic3DParticleScatterOffsetBuffer.Release();
         }
 
         public GPUResourceManager()
@@ -84,7 +89,13 @@ namespace LODFluid
                 GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
                 3);
+
             DynamicSorted3DParticle = new ParticleBuffer(
+                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
+                3);
+
+            DynamicNarrow3DParticle = new ParticleBuffer(
                 GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
                 3);
@@ -124,6 +135,14 @@ namespace LODFluid
             Dynamic3DParticleBoundaryVelocityBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 3);
+
+            Dynamic3DParticleFilterBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(uint));
+
+            Dynamic3DParticleScatterOffsetBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(uint));
 
             Vector3Int HashResolution = GPUGlobalParameterManager.GetInstance().HashResolution;
             int HashCellCount = HashResolution.x * HashResolution.y * HashResolution.z;
