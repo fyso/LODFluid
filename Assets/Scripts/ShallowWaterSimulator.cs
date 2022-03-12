@@ -14,6 +14,9 @@ namespace LODFluid
         public Texture2D InitialState;
         public Material InitHeightMap;
 
+        // Rendering stuff
+        private const string StateTextureKey = "_StateTex";
+
 
         void Start()
         {
@@ -35,8 +38,18 @@ namespace LODFluid
         }
         public void Initialize()
         {
+            if (InitialState != null)
+            {
+                if (InitHeightMap != null)
+                    Graphics.Blit(InitialState, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture, InitHeightMap);
+                else
+                    Graphics.Blit(InitialState, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture);
+            }
 
-
+            foreach (var material in Materials)
+            {
+                material.SetTexture(StateTextureKey, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture);
+            }
         }
     }
 }
