@@ -8,6 +8,7 @@ namespace LODFluid
     {
         public ComputeBuffer ParticlePositionBuffer;
         public ComputeBuffer ParticleVelocityBuffer;
+        public ComputeBuffer ParticleFilterBuffer;
         public float ParticleRadius;
         public uint MaxParticleSize;
 
@@ -15,6 +16,7 @@ namespace LODFluid
         {
             ParticlePositionBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
             ParticleVelocityBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
+            ParticleFilterBuffer = new ComputeBuffer((int)vParticleBufferSize, sizeof(uint));
             ParticleRadius = vParticleRadius;
             MaxParticleSize = vParticleBufferSize;
         }
@@ -23,6 +25,7 @@ namespace LODFluid
         {
             ParticlePositionBuffer.Release();
             ParticleVelocityBuffer.Release();
+            ParticleFilterBuffer.Release();
         }
     }
 
@@ -53,7 +56,6 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleNormalBuffer;
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
-        public ComputeBuffer Dynamic3DParticleFilterBuffer;
         public ComputeBuffer Dynamic3DParticleScatterOffsetBuffer;
 
         ~GPUResourceManager()
@@ -72,7 +74,6 @@ namespace LODFluid
             Dynamic3DParticleNormalBuffer.Release();
             Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
             Dynamic3DParticleBoundaryVelocityBuffer.Release();
-            Dynamic3DParticleFilterBuffer.Release();
             Dynamic3DParticleScatterOffsetBuffer.Release();
         }
 
@@ -135,10 +136,6 @@ namespace LODFluid
             Dynamic3DParticleBoundaryVelocityBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 3);
-
-            Dynamic3DParticleFilterBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                sizeof(uint));
 
             Dynamic3DParticleScatterOffsetBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,

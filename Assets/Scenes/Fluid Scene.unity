@@ -360,8 +360,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: -25.86, y: -11.4, z: -7.73}
-  WaterGenerateResolution: {x: 41, y: 44, z: 32}
+  WaterGeneratePosition: {x: -30.89, y: -15.21, z: -15.4}
+  WaterGenerateResolution: {x: 8, y: 8, z: 8}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 8164078560040880145}
@@ -373,7 +373,7 @@ MonoBehaviour:
   UseEnforceBoundary: 1
   DivergenceFreeIteration: 1
   FasterSlover: 0
-  LogSloverConverge: 0
+  LogSloverConverge: 1
   CurrrentParticleData: 0
   DivergenceFreeError: 0
   PressureError: 0
@@ -481,7 +481,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8164078560040880145}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 3.7452707, y: 0.39330012, z: 4.6924953}
+  m_LocalPosition: {x: -1.5, y: -3.6, z: 1.3}
   m_LocalScale: {x: 52, y: 23, z: 24}
   m_Children: []
   m_Father: {fileID: 1766839093}

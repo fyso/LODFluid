@@ -528,8 +528,10 @@ void updateVelocityWithNoPressureForce(uint ThreadIdx : SV_GroupIndex, uint Grou
 
 StructuredBuffer<float3> BackParticlePosition_R;
 StructuredBuffer<float3> BackParticleVelocity_R;
+StructuredBuffer<uint> BackParticleFilter_R;
 RWStructuredBuffer<float3> FrontParticlePosition_RW;
 RWStructuredBuffer<float3> FrontParticleVelocity_RW;
+RWStructuredBuffer<uint> FrontParticleFilter_RW;
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
@@ -541,4 +543,5 @@ void advectAndSwapParticleBuffer(uint ThreadIdx : SV_GroupIndex, uint GroupIdx :
     float3 NewVelocity = BackParticleVelocity_R[i];
     FrontParticlePosition_RW[i] = NewPosition + NewVelocity * TimeStep;
     FrontParticleVelocity_RW[i] = BackParticleVelocity_R[i];
+    FrontParticleFilter_RW[i] = BackParticleFilter_R[i];
 }
