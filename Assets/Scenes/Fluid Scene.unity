@@ -361,7 +361,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   WaterGeneratePosition: {x: -30.89, y: -15.21, z: -15.4}
-  WaterGenerateResolution: {x: 8, y: 8, z: 8}
+  WaterGenerateResolution: {x: 26, y: 41, z: 41}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 8164078560040880145}
@@ -506,7 +506,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -3033667219593020291, guid: 6da5c2bad48187f42b466e0a40f6a3db, type: 3}
+  - {fileID: 2100000, guid: 39e7dc4411d92f54e92c24d88dc36767, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
