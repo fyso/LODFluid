@@ -23,8 +23,8 @@ namespace LODFluid
         [Range(0, 10f)]
         public float Gravity = 9.8f;
 
-        private int DivergenceIterationCount = 3;
-        private int PressureIterationCount = 3;
+        private int DivergenceIterationCount = 4;
+        private int PressureIterationCount = 4;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;

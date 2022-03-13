@@ -76,7 +76,6 @@ void deleteParticleOutofRange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV
     }
 }
 
-
 StructuredBuffer<float3> TargetParticlePosition_R;
 StructuredBuffer<float3> TargetParticleVelocity_R;
 StructuredBuffer<uint> TargetParticleFilter_R;
