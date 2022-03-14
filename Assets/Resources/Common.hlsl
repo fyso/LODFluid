@@ -24,6 +24,11 @@ uint expandBits3D(uint v)
     return v;
 }
 
+void saveHash(uint vKey, uint vValue, RWStructuredBuffer<uint> vKeyBuffer, RWStructuredBuffer<uint> vValueBuffer)
+{
+    //TODO Hash Value
+}
+
 uint hashFunction(uint vKey)
 {
     return vKey % 122777;

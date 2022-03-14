@@ -360,14 +360,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: -30.89, y: -15.21, z: -15.4}
-  WaterGenerateResolution: {x: 26, y: 41, z: 41}
+  WaterGeneratePosition: {x: -14.4, y: -5.5, z: -5.6}
+  WaterGenerateResolution: {x: 26, y: 101, z: 41}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 8164078560040880145}
   TimeStep: 0.033
   Viscosity: 0.006
-  SurfaceTension: 0.05
+  SurfaceTension: 0.1
   Gravity: 9.8
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
@@ -481,8 +481,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8164078560040880145}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.5, y: -3.6, z: 0.4}
-  m_LocalScale: {x: 134.3415, y: 47.048737, z: 24.353014}
+  m_LocalPosition: {x: -1.5, y: 31, z: 9.4}
+  m_LocalScale: {x: 124.614235, y: 80.97351, z: 22.589685}
   m_Children: []
   m_Father: {fileID: 1766839093}
   m_RootOrder: 0
@@ -619,8 +619,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bounds:
-    m_Center: {x: 0.0000009536743, y: 0.00000047683716, z: 0.00000023841858}
-    m_Extent: {x: 71.6488, y: 25.092659, z: 12.988275}
+    m_Center: {x: 0.0000009536743, y: 0, z: -0.0000009536743}
+    m_Extent: {x: 66.46093, y: 43.18587, z: 12.047832}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
   bakedRenderers:

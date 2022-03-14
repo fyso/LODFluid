@@ -31,9 +31,9 @@ namespace LODFluid
         public Vector3Int HashResolution { 
             get {
                 Vector3 SimulationDia = HashGridMax - HashGridMin;
-                int X = Mathf.CeilToInt(SimulationDia.x / ShallowWaterCellLength);
-                int Y = Mathf.CeilToInt(SimulationDia.y / ShallowWaterCellLength);
-                int Z = Mathf.CeilToInt(SimulationDia.z / ShallowWaterCellLength);
+                int X = Mathf.CeilToInt(SimulationDia.x / HashCellLength);
+                int Y = Mathf.CeilToInt(SimulationDia.y / HashCellLength);
+                int Z = Mathf.CeilToInt(SimulationDia.z / HashCellLength);
                 return new Vector3Int(X, Y, Z);
             } 
         }
