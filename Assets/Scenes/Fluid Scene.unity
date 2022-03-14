@@ -360,7 +360,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: -14.4, y: -5.5, z: -5.6}
+  SimulationRangeMin: {x: -64, y: 0, z: -64}
+  SimulationRangeRes: {x: 128, y: 64, z: 128}
+  WaterGeneratePosition: {x: -14.4, y: 0, z: -5.6}
   WaterGenerateResolution: {x: 26, y: 101, z: 41}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
@@ -372,11 +374,6 @@ MonoBehaviour:
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
   DivergenceFreeIteration: 1
-  FasterSlover: 0
-  LogSloverConverge: 0
-  CurrrentParticleData: 0
-  DivergenceFreeError: 0
-  PressureError: 0
 --- !u!4 &1784697732
 Transform:
   m_ObjectHideFlags: 0
@@ -482,7 +479,7 @@ Transform:
   m_GameObject: {fileID: 8164078560040880145}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -1.5, y: 31, z: 9.4}
-  m_LocalScale: {x: 124.614235, y: 80.97351, z: 22.589685}
+  m_LocalScale: {x: 92.56969, y: 60.151173, z: 43.492344}
   m_Children: []
   m_Father: {fileID: 1766839093}
   m_RootOrder: 0
@@ -619,8 +616,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bounds:
-    m_Center: {x: 0.0000009536743, y: 0, z: -0.0000009536743}
-    m_Extent: {x: 66.46093, y: 43.18587, z: 12.047832}
+    m_Center: {x: 0.0000009536743, y: 0, z: 0}
+    m_Extent: {x: 49.3705, y: 32.080624, z: 23.195917}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
   bakedRenderers:
@@ -628,7 +625,7 @@ MonoBehaviour:
   targetVoxelSize: 0
   useTargetVoxelSize: 0
   useManualBounds: 0
-  sdfData: {fileID: 11400000, guid: 6cadc9582c2d5d043a18ed41868ded08, type: 2}
+  sdfData: {fileID: 11400000, guid: c587d60fc454199449ac8acf0601eca3, type: 2}
   raySamples: 256
   jitterSeed: 555
   jitterScale: 0.75

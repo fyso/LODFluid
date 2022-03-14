@@ -3,7 +3,7 @@ using UnityEngine.Profiling;
 
 namespace LODFluid
 {
-    public class DivergenceFreeSPHSloverInvoker : Singleton<DivergenceFreeSPHSloverInvoker>
+    public class DivergenceFreeSPHSolverInvoker : Singleton<DivergenceFreeSPHSolverInvoker>
     {
         private ComputeShader DivergenceFreeSPHSloverCS;
         private int computeFluidPropertyKernel;
@@ -14,9 +14,9 @@ namespace LODFluid
         private int updateVelocityWithNoPressureForceKernel;
         private int advectAndSwapParticleBufferKernel;
 
-        public DivergenceFreeSPHSloverInvoker()
+        public DivergenceFreeSPHSolverInvoker()
         {
-            DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Slover/DivergenceFreeSPHSlover");
+            DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Solver/DivergenceFreeSPHSolver");
             computeFluidPropertyKernel = DivergenceFreeSPHSloverCS.FindKernel("computeFluidProperty");
             computeDensityChangeKernel = DivergenceFreeSPHSloverCS.FindKernel("computeDensityChange");
             sloveDivergenceIterationKernel = DivergenceFreeSPHSloverCS.FindKernel("solveDivergenceIteration");

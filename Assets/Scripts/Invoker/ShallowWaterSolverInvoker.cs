@@ -14,7 +14,7 @@ namespace LODFluid
 
         public ShallowWaterSolverInvoker()
         {
-            ShallowWaterSolverCS = Resources.Load<ComputeShader>("Slover/ShallowWaterSolver");
+            ShallowWaterSolverCS = Resources.Load<ComputeShader>("Solver/ShallowWaterSolver");
             fluxComputationKernel = ShallowWaterSolverCS.FindKernel("FluxComputation");
             fluxApplyKernel = ShallowWaterSolverCS.FindKernel("FluxApply");
             ShallowWaterSolverCS.GetKernelThreadGroupSizes(fluxComputationKernel, out ThreadGroupX, out ThreadGroupY, out _);

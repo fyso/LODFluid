@@ -34,7 +34,7 @@ namespace LODFluid
         private void OnDrawGizmos()
         {
             Vector3 SimulationMin = SimulationRangeMin;
-            Vector3 SimulationMax = (Vector3)SimulationRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
+            Vector3 SimulationMax = SimulationRangeMin + (Vector3)SimulationRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
             Gizmos.color = new Color(1.0f, 0.0f, 0.0f);
             Gizmos.DrawWireCube((SimulationMin + SimulationMax) * 0.5f, SimulationMax - SimulationMin);
 
@@ -46,18 +46,12 @@ namespace LODFluid
 
         void Start()
         {
-            VolumeMapBoundarySloverInvoker.GetInstance().GenerateBoundaryMapData(
+            VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,
                 GPUResourceManager.GetInstance().Volume,
                 GPUResourceManager.GetInstance().SignedDistance,
                 GPUGlobalParameterManager.GetInstance().SearchRadius,
                 GPUGlobalParameterManager.GetInstance().CubicZero);
-
-            DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
-                GPUResourceManager.GetInstance().Dynamic3DParticle,
-                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                WaterGeneratePosition,
-                WaterGenerateResolution);
         }
 
         void Update()
@@ -117,7 +111,7 @@ namespace LODFluid
             if (UseVolumeMapBoundary)
             {
                 Profiler.BeginSample("Query closest point and volume");
-                VolumeMapBoundarySloverInvoker.GetInstance().QueryClosestPointAndVolume(
+                VolumeMapBoundarySolverInvoker.GetInstance().QueryClosestPointAndVolume(
                         GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                         GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                         BoundaryObjects,
@@ -135,7 +129,7 @@ namespace LODFluid
                 Profiler.BeginSample("Apply boundary influence");
                 for (int i = 0; i < 4; i++)
                 {
-                    EnforceBoundarySloverInvoker.GetInstance().ApplyBoundaryInfluence(
+                    EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
                             BoundaryObjects,
                             GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                             GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
@@ -146,7 +140,7 @@ namespace LODFluid
             }
 
             Profiler.BeginSample("Slove divergence-free SPH");
-            DivergenceFreeSPHSloverInvoker.GetInstance().Slove(
+            DivergenceFreeSPHSolverInvoker.GetInstance().Slove(
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,

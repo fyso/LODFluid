@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace LODFluid
 {
-    public class EnforceBoundarySloverInvoker : Singleton<EnforceBoundarySloverInvoker>
+    public class EnforceBoundarySolverInvoker : Singleton<EnforceBoundarySolverInvoker>
     {
         private ComputeShader ForceBasedBoundaryCS;
         private int solveBoundaryKernel;
 
-        public EnforceBoundarySloverInvoker()
+        public EnforceBoundarySolverInvoker()
         {
-            ForceBasedBoundaryCS = Resources.Load<ComputeShader>("Slover/EnforceBoundarySlover");
+            ForceBasedBoundaryCS = Resources.Load<ComputeShader>("Solver/EnforceBoundarySolver");
             solveBoundaryKernel = ForceBasedBoundaryCS.FindKernel("solveBoundary");
         }
 

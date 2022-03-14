@@ -39,7 +39,7 @@ namespace LODFluid
         }
     }
 
-    public class VolumeMapBoundarySloverInvoker : Singleton<VolumeMapBoundarySloverInvoker>
+    public class VolumeMapBoundarySolverInvoker : Singleton<VolumeMapBoundarySolverInvoker>
     {
         private ComputeShader m_GenerateVolumeMapCS;
 
@@ -91,9 +91,9 @@ namespace LODFluid
             0.989400934991649938510249739920f, 0, 0, 0
         };
 
-        public VolumeMapBoundarySloverInvoker()
+        public VolumeMapBoundarySolverInvoker()
         {
-            m_GenerateVolumeMapCS = Resources.Load<ComputeShader>("Slover/VolumeMapBoundarySlover");
+            m_GenerateVolumeMapCS = Resources.Load<ComputeShader>("Solver/VolumeMapBoundarySolver");
 
             m_GenerateVolumeMapKernel = m_GenerateVolumeMapCS.FindKernel("generateVolumeMap");
             m_GenerateSignedDistanceMapKernel = m_GenerateVolumeMapCS.FindKernel("generateSignedDistanceMap");
