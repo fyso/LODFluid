@@ -123,56 +123,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &332295375
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 332295376}
-  - component: {fileID: 332295377}
-  m_Layer: 0
-  m_Name: ShallowWater
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &332295376
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 332295375}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 4
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &332295377
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 332295375}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee130235719dc234cafd91c5dd8b4f76, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Materials:
-  - {fileID: 2100000, guid: 1cf9e6530b1beb341b6ecccf254cf279, type: 2}
-  - {fileID: 2100000, guid: 4dc86583f8ebc4d44be01aada5cc6c14, type: 2}
-  - {fileID: 2100000, guid: e72cc0628d750ef469589d7be7ed5d90, type: 2}
-  ShallowWaterShader: {fileID: 7200000, guid: a37c3a6c9bf655b40b1b6c76169341c1, type: 3}
-  InitialState: {fileID: 2800000, guid: 43149b43056f9c340b49f9a408fc3284, type: 3}
-  InitHeightMap: {fileID: 2100000, guid: a1079684b02cda94a9a601a811134170, type: 2}
 --- !u!1 &642881917
 GameObject:
   m_ObjectHideFlags: 0
@@ -337,7 +287,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 718720719}
   m_LocalRotation: {x: 0.3249875, y: -0, z: -0, w: 0.9457183}
-  m_LocalPosition: {x: 210, y: 242, z: -57}
+  m_LocalPosition: {x: 68, y: 140, z: -30}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -360,36 +310,6 @@ MonoBehaviour:
   MaxShift: 1000
   MouseSensitivity: 0.25
   RotateOnlyIfMousedown: 1
---- !u!1 &970497527
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 970497528}
-  m_Layer: 0
-  m_Name: ShallowWater
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &970497528
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 970497527}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 250.18289, y: -202.40532, z: 11.518333}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 2
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &983949755
 GameObject:
   m_ObjectHideFlags: 0
@@ -483,6 +403,37 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1 &1150035676
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1150035677}
+  m_Layer: 0
+  m_Name: Simulator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1150035677
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1150035676}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 51.27862, y: 55.30311, z: -4.1649}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 2013391082}
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1622217433
 GameObject:
   m_ObjectHideFlags: 0
@@ -514,69 +465,7 @@ Transform:
   - {fileID: 642881918}
   - {fileID: 1715842777}
   m_Father: {fileID: 0}
-  m_RootOrder: 5
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1652967170
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1652967172}
-  - component: {fileID: 1652967171}
-  m_Layer: 0
-  m_Name: LODFluid
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1652967171
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1652967170}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  SimulationRangeMin: {x: 0, y: 0, z: 0}
-  SimulationRangeRes: {x: 320, y: 160, z: 320}
-  WaterGeneratePosition: {x: 60, y: 43.55, z: 60}
-  WaterGenerateResolution: {x: 32, y: 32, z: 32}
-  SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
-  BoundaryObjects:
-  - {fileID: 1797305123}
-  TimeStep: 0.033
-  Viscosity: 0.006
-  SurfaceTension: 0.1
-  Gravity: 9.8
-  UseVolumeMapBoundary: 1
-  UseEnforceBoundary: 1
-  DivergenceFreeIteration: 1
-  FasterSlover: 0
-  LogSloverConverge: 0
-  CurrrentParticleData: 0
-  DivergenceFreeError: 0
-  PressureError: 0
---- !u!4 &1652967172
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1652967170}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 3
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1715842776
 GameObject:
@@ -769,3 +658,93 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1797305123}
   m_Mesh: {fileID: -2432090755550338912, guid: 6da5c2bad48187f42b466e0a40f6a3db, type: 3}
+--- !u!1 &2013391081
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2013391082}
+  - component: {fileID: 2013391083}
+  - component: {fileID: 2013391084}
+  - component: {fileID: 2013391085}
+  m_Layer: 0
+  m_Name: HybridSimulator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2013391082
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013391081}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1150035677}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2013391083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013391081}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cb6e946ca77b7e4184c730805ae803f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2013391084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013391081}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  SimulationRangeMin: {x: 0, y: 0, z: 0}
+  SimulationRangeRes: {x: 320, y: 160, z: 320}
+  WaterGeneratePosition: {x: 60, y: 40, z: 60}
+  WaterGenerateResolution: {x: 32, y: 32, z: 32}
+  SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
+  BoundaryObjects:
+  - {fileID: 1797305123}
+  TimeStep: 0.033
+  Viscosity: 0.006
+  SurfaceTension: 0.1
+  Gravity: 9.8
+  UseVolumeMapBoundary: 1
+  UseEnforceBoundary: 1
+  DivergenceFreeIteration: 1
+--- !u!114 &2013391085
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013391081}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee130235719dc234cafd91c5dd8b4f76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Materials:
+  - {fileID: 2100000, guid: 1cf9e6530b1beb341b6ecccf254cf279, type: 2}
+  - {fileID: 2100000, guid: 4dc86583f8ebc4d44be01aada5cc6c14, type: 2}
+  - {fileID: 2100000, guid: e72cc0628d750ef469589d7be7ed5d90, type: 2}
+  ShallowWaterShader: {fileID: 7200000, guid: a37c3a6c9bf655b40b1b6c76169341c1, type: 3}
+  InitialState: {fileID: 2800000, guid: 43149b43056f9c340b49f9a408fc3284, type: 3}
+  InitHeightMap: {fileID: 2100000, guid: a1079684b02cda94a9a601a811134170, type: 2}
