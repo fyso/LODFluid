@@ -110,8 +110,9 @@ namespace LODFluid
                 GPUGlobalParameterManager.GetInstance().ShallowWaterTimeStep,
                 GPUGlobalParameterManager.GetInstance().Gravity,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterPipeArea,
-                GPUGlobalParameterManager.GetInstance().ShallowWaterPipeLength
-                );
+                GPUGlobalParameterManager.GetInstance().ShallowWaterPipeLength);
+
+            //Hybrid Step
 
             //SPH Step
             Profiler.BeginSample("Delete out of range particle");

@@ -1,7 +1,8 @@
 #include "../Common.hlsl"
 
 #pragma enable_d3d11_debug_symbols
-#pragma kernel updateParticleSimulationRange
+#pragma kernel particleToGrid
+#pragma kernel gridToParticle
 
 Texture2D<float> TerrainMap_R;
 
@@ -15,8 +16,26 @@ uint2 ShallowWaterRes;
 float2 ShallowWaterMin;
 float ShallowWaterCellLength;
 
-[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
-void updateParticleSimulationRange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+StructuredBuffer<uint> ParticleIndirectArgment_R;
+
+StructuredBuffer<float3> ParticlePosition_R;
+RWStructuredBuffer<float3> ParticlePosition_RW;
+
+StructuredBuffer<float3> ParticleVelocity_R;
+RWStructuredBuffer<float3> ParticleVelocity_RW;
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void particleToGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void gridToParticle(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     
 }
