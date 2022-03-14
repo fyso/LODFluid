@@ -162,8 +162,8 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().Viscosity,
                     GPUGlobalParameterManager.GetInstance().SurfaceTension,
                     GPUGlobalParameterManager.GetInstance().Gravity,
-                    UseVolumeMapBoundary,
-                    DivergenceIterationCount, PressureIterationCount, DivergenceFreeIteration
+                    DivergenceIterationCount, PressureIterationCount,
+                    UseVolumeMapBoundary, DivergenceFreeIteration
                 );
             Profiler.EndSample();
         }

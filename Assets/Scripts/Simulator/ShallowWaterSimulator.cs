@@ -17,13 +17,12 @@ namespace LODFluid
         // Rendering stuff
         private const string StateTextureKey = "_StateTex";
 
-
         void Start()
         {
             Camera.main.depthTextureMode = DepthTextureMode.Depth;
             Initialize();
         }
-        void Update()
+        void FixedUpdate()
         {
             ShallowWaterSolverInvoker.GetInstance().Solve(
                 GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture,
