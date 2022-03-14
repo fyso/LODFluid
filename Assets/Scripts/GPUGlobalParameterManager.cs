@@ -26,11 +26,11 @@ namespace LODFluid
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }
         public float CubicZero { get { return 8.0f / (Mathf.PI * Mathf.Pow(SearchRadius, 3.0f)); } }
 
-        public Vector3 SimualtionRangeMin { get { return (new Vector3(-320, -160, -160)) * SearchRadius; } }
-        public Vector3 SimualtionRangeMax { get { return (new Vector3(320, 160, 160)) * SearchRadius; } }
+        public Vector3 SimualtionRangeMin = new Vector3(0, 0, 0);
+        public Vector3 SimualtionRangeRes = new Vector3(32, 16, 16);
         public float HashCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
         public Vector3 HashGridMin { get { return SimualtionRangeMin; } }
-        public Vector3 HashGridMax { get { return SimualtionRangeMax; } }
+        public Vector3 HashGridMax { get { return SimualtionRangeRes * SearchRadius; } }
         public Vector3Int HashResolution { 
             get {
                 Vector3 SimulationDia = HashGridMax - HashGridMin;
