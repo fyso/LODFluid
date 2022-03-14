@@ -141,10 +141,13 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(uint));
 
-            Vector3Int HashResolution = GPUGlobalParameterManager.GetInstance().HashResolution;
-            int HashCellCount = HashResolution.x * HashResolution.y * HashResolution.z;
-            HashGridCellParticleCountBuffer = new ComputeBuffer(HashCellCount, sizeof(uint));
-            HashGridCellParticleOffsetBuffer = new ComputeBuffer(HashCellCount, sizeof(uint));
+            HashGridCellParticleCountBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount, 
+                sizeof(uint));
+
+            HashGridCellParticleOffsetBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount, 
+                sizeof(uint));
 
             uint SPhThreadSize = GPUGlobalParameterManager.GetInstance().SPHThreadSize;
             ScanTempBuffer1 = new ComputeBuffer((int)SPhThreadSize * (int)SPhThreadSize, sizeof(uint));

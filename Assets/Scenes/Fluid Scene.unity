@@ -373,7 +373,7 @@ MonoBehaviour:
   UseEnforceBoundary: 1
   DivergenceFreeIteration: 1
   FasterSlover: 0
-  LogSloverConverge: 1
+  LogSloverConverge: 0
   CurrrentParticleData: 0
   DivergenceFreeError: 0
   PressureError: 0
@@ -481,8 +481,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8164078560040880145}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.5, y: -3.6, z: 1.3}
-  m_LocalScale: {x: 52, y: 23, z: 24}
+  m_LocalPosition: {x: -1.5, y: -3.6, z: 0.4}
+  m_LocalScale: {x: 134.3415, y: 47.048737, z: 24.353014}
   m_Children: []
   m_Father: {fileID: 1766839093}
   m_RootOrder: 0
@@ -619,8 +619,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 27.733334, y: 12.266666, z: 12.8}
+    m_Center: {x: 0.0000009536743, y: 0.00000047683716, z: 0.00000023841858}
+    m_Extent: {x: 71.6488, y: 25.092659, z: 12.988275}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
   bakedRenderers:
