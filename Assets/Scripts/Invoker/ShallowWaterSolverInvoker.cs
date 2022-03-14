@@ -27,10 +27,11 @@ namespace LODFluid
             float vTimeDelta,
             float vGravity,
             float vPipeArea,
-            float vPipeLength
+            float vPipeLength,
+            float vCellSize
             )
         {
-            Vector2 CellSize = new Vector2(1f , 1f);
+            Vector2 CellSize = new Vector2(vCellSize, vCellSize);
             ShallowWaterSolverCS.SetInt("_Width", vReslotion.x);
             ShallowWaterSolverCS.SetInt("_Height", vReslotion.y);
             ShallowWaterSolverCS.SetFloat("_TimeDelta", vTimeDelta);

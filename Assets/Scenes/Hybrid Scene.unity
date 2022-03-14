@@ -677,7 +677,7 @@ MonoBehaviour:
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 1797305123}
-  TimeStep: 0.016666668
+  TimeStep: 0.033
   Viscosity: 0.01
   SurfaceTension: 0.05
   Gravity: 9.8

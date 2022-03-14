@@ -107,10 +107,11 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().ShallowWaterResources.VelocityTexture,
                 GPUResourceManager.GetInstance().ShallowWaterResources.WaterOutFluxTexture,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterReolution,
-                GPUGlobalParameterManager.GetInstance().ShallowWaterTimeStep,
+                GPUGlobalParameterManager.GetInstance().TimeStep,
                 GPUGlobalParameterManager.GetInstance().Gravity,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterPipeArea,
-                GPUGlobalParameterManager.GetInstance().ShallowWaterPipeLength);
+                GPUGlobalParameterManager.GetInstance().ShallowWaterPipeLength,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
 
             //Hybrid Step
 
