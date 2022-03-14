@@ -10,6 +10,9 @@ namespace LODFluid
         public Vector2 ShallowWaterMin = new Vector2(0, 0);
         public float ShallowWaterCellLength = 1.0f;
         public float ShallowWaterParticleRadius = 0.25f;
+        public float ShallowWaterTimeStep = 0.01666667f;
+        public float ShallowWaterPipeLength = 1;
+        public float ShallowWaterPipeArea = 5;
 
         public uint SPHThreadSize = 512;
 

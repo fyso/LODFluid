@@ -29,6 +29,54 @@ namespace LODFluid
         }
     }
 
+    public class ShallowWaterBuffer
+    {
+        // State texture ARGBFloat
+        // R - surface height  [0, +inf]
+        // G - water over surface height [0, +inf]
+        // B - Suspended sediment amount [0, +inf]
+        // A - Hardness of the surface [0, 1]
+        public RenderTexture StateTexture;
+
+        // represents how much water is OUTGOING in each direction LRTB
+        public RenderTexture WaterOutFluxTexture;
+
+        // R - X velocity ; G - Y-velocity
+        public RenderTexture VelocityTexture;
+        
+        public ShallowWaterBuffer(Vector2Int vResolution)
+        {
+            int Width = vResolution.x;
+            int Height = vResolution.y;
+            StateTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
+            {
+                enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            WaterOutFluxTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
+            {
+                enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            VelocityTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
+            {
+                enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+        }
+
+        ~ShallowWaterBuffer()
+        {
+            StateTexture.Release();
+            WaterOutFluxTexture.Release();
+            VelocityTexture.Release();
+        }
+    }
+
     public class GPUResourceManager : Singleton<GPUResourceManager>
     {
         public ParticleBuffer Dynamic3DParticle;
@@ -57,6 +105,8 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
         public ComputeBuffer Dynamic3DParticleScatterOffsetBuffer;
+
+        public ShallowWaterBuffer ShallowWaterResources;
 
         ~GPUResourceManager()
         {
@@ -152,6 +202,8 @@ namespace LODFluid
             uint SPhThreadSize = GPUGlobalParameterManager.GetInstance().SPHThreadSize;
             ScanTempBuffer1 = new ComputeBuffer((int)SPhThreadSize * (int)SPhThreadSize, sizeof(uint));
             ScanTempBuffer2 = new ComputeBuffer((int)SPhThreadSize, sizeof(uint));
+
+            ShallowWaterResources = new ShallowWaterBuffer(GPUGlobalParameterManager.GetInstance().ShallowWaterReolution);
         }
     }
 }
