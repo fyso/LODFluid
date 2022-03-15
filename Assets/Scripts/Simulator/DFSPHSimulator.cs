@@ -10,6 +10,7 @@ namespace LODFluid
         public Vector3Int SimulationRangeRes = new Vector3Int(64, 64, 64);
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
+        public Vector3 WaterGenerateInitVelocity = new Vector3(0, 0, 0);
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
@@ -69,7 +70,8 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     WaterGeneratePosition,
-                    WaterGenerateResolution);
+                    WaterGenerateResolution,
+                    WaterGenerateInitVelocity);
             }
         }
 

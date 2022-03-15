@@ -12,6 +12,7 @@ namespace LODFluid
         public Vector3Int SimulationRangeRes = new Vector3Int(64, 64, 64);
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
+        public Vector3 WaterGenerateInitVelocity = new Vector3(0, 0, 0);
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
@@ -52,6 +53,7 @@ namespace LODFluid
         void OnRenderObject()
         {
             SPHVisualMaterial.SetPass(0);
+            SPHVisualMaterial.SetFloat("_ParticleRadius", GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
             SPHVisualMaterial.SetBuffer("_particlePositionBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticlePositionBuffer);
             SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleVelocityBuffer);
             Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer, 12);
@@ -80,6 +82,8 @@ namespace LODFluid
                 GPUGlobalParameterManager.GetInstance().SearchRadius,
                 GPUGlobalParameterManager.GetInstance().CubicZero);
         }
+        bool OK = false;
+        uint Count = 0;
         private void Update()
         {
             GPUGlobalParameterManager.GetInstance().SimualtionRangeMin = SimulationRangeMin;
@@ -95,7 +99,15 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     WaterGeneratePosition,
-                    WaterGenerateResolution);
+                    WaterGenerateResolution,
+                    WaterGenerateInitVelocity);
+                OK = true;
+            }
+            if (OK)
+                Count++;
+            if(Count == 1200)
+            {
+                Time.timeScale = 0.0f;
             }
         }
 
@@ -112,8 +124,6 @@ namespace LODFluid
                 GPUGlobalParameterManager.GetInstance().ShallowWaterPipeArea,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterPipeLength,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
-
-            //Hybrid Step
 
             //SPH Step
             Profiler.BeginSample("Delete out of range particle");
@@ -200,6 +210,16 @@ namespace LODFluid
                     DivergenceIterationCount, PressureIterationCount
                 );
             Profiler.EndSample();
+
+            HybridInvoker.GetInstance().CoupleParticleAndGrid(
+                GPUResourceManager.GetInstance().Dynamic3DParticle,
+                GPUResourceManager.GetInstance().ShallowWaterResources,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUGlobalParameterManager.GetInstance().TimeStep,
+                GPUGlobalParameterManager.GetInstance().BandWidth,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterMin,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterMax,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
         }
     }
 }

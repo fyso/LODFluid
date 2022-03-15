@@ -63,8 +63,7 @@ for (int x = -1; x <= 1; x++)\
         for (int z = -1; z <= 1; z++)\
         {\
             int3 AdjCell = Cell3DIndex + int3(x, y, z);\
-            if (AdjCell.x < 0 || AdjCell.y < 0 || AdjCell.z < 0 ||\
-                AdjCell.x >= (int) HashGridResolutionX || AdjCell.y >= (int) HashGridResolutionY || AdjCell.z >= (int) HashGridResolutionZ)\
+            if (any(AdjCell < 0) || any(AdjCell >= int3((int) HashGridResolutionX, (int)HashGridResolutionY, (int)HashGridResolutionZ)))\
                 continue;\
             uint CellLinerIndex = computeMorton3D((uint3) AdjCell);\
             uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];\

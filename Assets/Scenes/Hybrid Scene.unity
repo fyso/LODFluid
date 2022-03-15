@@ -674,6 +674,7 @@ MonoBehaviour:
   SimulationRangeRes: {x: 320, y: 160, z: 320}
   WaterGeneratePosition: {x: 40, y: 40, z: 40}
   WaterGenerateResolution: {x: 32, y: 32, z: 32}
+  WaterGenerateInitVelocity: {x: 50, y: 0, z: 50}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects:
   - {fileID: 1797305123}

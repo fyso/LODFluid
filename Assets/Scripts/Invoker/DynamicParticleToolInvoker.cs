@@ -27,7 +27,8 @@ namespace LODFluid
             ParticleBuffer voTarget,
             ComputeBuffer voParticleIndirectArgumentBuffer,
             Vector3 vWaterGeneratePos,
-            Vector3Int vWaterBlockRes)
+            Vector3Int vWaterBlockRes,
+            Vector3 vInitParticleVel)
         {
             int AddedParticleCount = vWaterBlockRes.x * vWaterBlockRes.y * vWaterBlockRes.z;
             DynamicParticleToolCS.SetFloats("WaterGeneratePos", vWaterGeneratePos.x, vWaterGeneratePos.y, vWaterGeneratePos.z);
@@ -37,6 +38,7 @@ namespace LODFluid
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
             DynamicParticleToolCS.SetInt("MaxParticleCount", (int)voTarget.MaxParticleSize);
             DynamicParticleToolCS.SetFloat("ParticleRadius", voTarget.ParticleRadius);
+            DynamicParticleToolCS.SetFloats("ParticleInitVel", vInitParticleVel.x, vInitParticleVel.y, vInitParticleVel.z);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleIndrectArgment_RW", voParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", voTarget.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", voTarget.ParticleVelocityBuffer);

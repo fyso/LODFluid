@@ -14,6 +14,7 @@ namespace LODFluid
         public float ShallowWaterPipeLength = 1;
         public float ShallowWaterPipeArea = 5;
         public float ShallowWaterCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
+        public Vector2 ShallowWaterMax { get { return ShallowWaterMin + (Vector2)ShallowWaterReolution * ShallowWaterCellLength; } }
 
         public uint SPHThreadSize = 512;
         public uint Max3DParticleCount = 200000;
@@ -23,12 +24,13 @@ namespace LODFluid
         public float ParticleVolume { get { return 0.8f * Mathf.Pow(2.0f * Dynamic3DParticleRadius, 3.0f); } }
         public float SearchRadius { get { return Dynamic3DParticleRadius * 4.0f; } }
         public float CubicZero { get { return 8.0f / (Mathf.PI * Mathf.Pow(SearchRadius, 3.0f)); } }
-
         public Vector3 SimualtionRangeMin = new Vector3(0, 0, 0);
         public Vector3Int SimualtionRangeRes = new Vector3Int(32, 16, 16);
         public float HashCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
         public Vector3 HashGridMin { get { return SimualtionRangeMin; } }
         public Vector3 HashGridMax { get { return SimualtionRangeMin + (Vector3)SimualtionRangeRes * SearchRadius; } }
         public Vector3Int HashResolution { get { return SimualtionRangeRes; } }
+
+        public float BandWidth { get { return SearchRadius * 20.0f; } }
     }
 }

@@ -4,17 +4,19 @@
 #pragma kernel particleToGrid
 #pragma kernel gridToParticle
 
-Texture2D<float> TerrainMap_R;
+float TimeStep;
+float BandWidth;
 
-Texture2D<float> HeightMap_R;
-RWTexture2D<float> HeightMap_RW;
+Texture2D<float4> StateMap_R;
+RWTexture2D<float4> StateMap_RW;
 
 Texture2D<float2> VelocityMap_R;
 RWTexture2D<float2> VelocityMap_RW;
 
-uint2 ShallowWaterRes;
+float2 ShallowWaterMax;
 float2 ShallowWaterMin;
 float ShallowWaterCellLength;
+SamplerState Sampler_Trilinear_Clamp;
 
 StructuredBuffer<uint> ParticleIndirectArgment_R;
 
@@ -24,6 +26,35 @@ RWStructuredBuffer<float3> ParticlePosition_RW;
 StructuredBuffer<float3> ParticleVelocity_R;
 RWStructuredBuffer<float3> ParticleVelocity_RW;
 
+RWStructuredBuffer<uint> ParticleFilter_RW;
+
+StructuredBuffer<uint> HashGridCellParticleCount_R;
+StructuredBuffer<uint> HashGridCellParticleOffset_R;
+
+float3 HashGridMin;
+float HashGridCellLength;
+uint HashGridResolutionX;
+uint HashGridResolutionY;
+uint HashGridResolutionZ;
+
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
+{
+    float2 CellGridPos = id.xy * ShallowWaterCellLength + ShallowWaterMin;
+    float4 CurrState = StateMap_R[id.xy];
+    float3 CellCenterPos = float3(CellGridPos.x, CurrState.r + CurrState.g, CellGridPos.y);
+    
+    uint3 Cell3DIndex = (CellCenterPos - HashGridMin) / HashGridCellLength;
+    uint IterationCount = HashGridResolutionY - Cell3DIndex.y;
+    for (int i = 0; i < IterationCount; i++)
+    {
+        uint CellLinerIndex = computeMorton3D(Cell3DIndex + uint3(0, i, 0));
+        uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];
+
+    }
+
+}
+
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void particleToGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
@@ -31,11 +62,43 @@ void particleToGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
         return;
     
+    float3 CurrPos = ParticlePosition_R[i];
+    float3 CurrVel = ParticleVelocity_R[i];
     
+    if (any(CurrPos.xz < ShallowWaterMin) || any(CurrPos.xz >= ShallowWaterMax))
+        return;
+    
+    uint2 Index2D = (CurrPos.xz - ShallowWaterMin) / ShallowWaterCellLength;
+    float4 ShallowWaterState = StateMap_RW[Index2D];
+    float HybridFactor = 1.0f - min(max(0, CurrPos.y - (ShallowWaterState.r + ShallowWaterState.g)), BandWidth) / BandWidth;
+    float2 ShallowWaterVel = VelocityMap_RW[Index2D];
+    //VelocityMap_RW[Index2D] = ShallowWaterVel * (1.0f - HybridFactor) + CurrVel.xz * HybridFactor;
+    
+    if(HybridFactor > 0.99f)
+    {
+        ParticleFilter_RW[i] = 0;
+        StateMap_RW[Index2D] += float4(0.0f, HybridFactor, 0.0f, 0.0f);
+    }
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void gridToParticle(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
     
+    float3 CurrPos = ParticlePosition_R[i];
+    
+    if (any(CurrPos.xz < ShallowWaterMin) || any(CurrPos.xz >= ShallowWaterMax))
+        return;
+    
+    uint2 Index2D = (CurrPos.xz - ShallowWaterMin) / ShallowWaterCellLength;
+    float4 ShallowWaterState = StateMap_R[Index2D];
+    float HybridFactor = 1.0f - min(max(0, CurrPos.y - (ShallowWaterState.r + ShallowWaterState.g)), BandWidth) / BandWidth;
+    float2 ShallowWaterVel = VelocityMap_R[Index2D];
+    float3 CurrVel = ParticleVelocity_RW[i];
+
+    //CurrVel = float3(CurrVel.x * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.x, CurrVel.y, CurrVel.z * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.y);
+    ParticleVelocity_RW[i] = CurrVel;
 }

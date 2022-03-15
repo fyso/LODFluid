@@ -24,6 +24,7 @@ uint WaterBlockResZ;
 uint AddedParticleCount;
 uint MaxParticleCount;
 float ParticleRadius;
+float3 ParticleInitVel;
 
 float3 HashGridMin;
 float HashGridCellLength;
@@ -42,7 +43,7 @@ void addParticleBlock(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     uint y = xp / WaterBlockResX;
     uint x = xp % WaterBlockResX;
     ParticlePosition_RW[CurrParticleCount + i] = WaterGeneratePos + float3(x, y, z) * ParticleRadius * 2.0f;
-    ParticleVelocity_RW[CurrParticleCount + i] = float3(0, 0, 0);
+    ParticleVelocity_RW[CurrParticleCount + i] = ParticleInitVel;
     ParticleFilter_RW[CurrParticleCount + i] = 1;
 }
 
@@ -69,10 +70,6 @@ void deleteParticleOutofRange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV
     if (any(Postion < HashGridMin) || any(Postion >= HashGridMax))
     {
         ParticleFilter_RW[i] = 0;
-    }
-    else
-    {
-        ParticleFilter_RW[i] = 1;
     }
 }
 
