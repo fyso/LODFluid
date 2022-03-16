@@ -3,6 +3,7 @@
 #pragma enable_d3d11_debug_symbols
 #pragma kernel FluxComputation
 #pragma kernel FluxApply
+#pragma kernel AddWater
 
 #define ThreadGroupX 32
 #define ThreadGroupY 32
@@ -49,6 +50,23 @@ float _Gravity;
 float2 _CellSize;
 float _PipeArea;
 float _PipeLength;
+
+float4 _InputControls;
+
+[NUMTHREADS]
+void AddWater(uint3 id : SV_DispatchThreadID)
+{
+    float4 currentState = CURRENT_SAMPLE(HeightMap);
+	
+    float2 uv = float2((float) id.x / _Width, (float) id.y / _Height);
+    float2 dist = uv - _InputControls.xy;
+	if(length(dist) < abs(_InputControls.z))
+    {
+		WATER_HEIGHT(currentState) = max(0, WATER_HEIGHT(currentState) + _InputControls.w * _TimeDelta);
+    }
+	CURRENT_SAMPLE(HeightMap) = currentState;
+}
+
 
 /* Pass 1. Flux field computation */
 [NUMTHREADS]

@@ -8,6 +8,7 @@ namespace LODFluid
         private ComputeShader ShallowWaterSolverCS;
         private int fluxComputationKernel;
         private int fluxApplyKernel;
+        private int addWaterKernel;
 
         private uint ThreadGroupX;
         private uint ThreadGroupY;
@@ -15,10 +16,24 @@ namespace LODFluid
         public ShallowWaterSolverInvoker()
         {
             ShallowWaterSolverCS = Resources.Load<ComputeShader>("Slover/ShallowWaterSolver");
+
             fluxComputationKernel = ShallowWaterSolverCS.FindKernel("FluxComputation");
             fluxApplyKernel = ShallowWaterSolverCS.FindKernel("FluxApply");
+            addWaterKernel = ShallowWaterSolverCS.FindKernel("AddWater");
             ShallowWaterSolverCS.GetKernelThreadGroupSizes(fluxComputationKernel, out ThreadGroupX, out ThreadGroupY, out _);
         }
+
+        public void AddWater(RenderTexture vStateTexture, Vector4 vInputControls, float vTimeDelta, Vector2Int vReslotion)
+        {
+            ShallowWaterSolverCS.SetTexture(addWaterKernel, "HeightMap", vStateTexture);
+            ShallowWaterSolverCS.SetVector("_InputControls", vInputControls);
+            ShallowWaterSolverCS.SetFloat("_TimeDelta", vTimeDelta);
+            ShallowWaterSolverCS.SetInt("_Width", vReslotion.x);
+            ShallowWaterSolverCS.SetInt("_Height", vReslotion.y);
+
+            ShallowWaterSolverCS.Dispatch(addWaterKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
+        }
+
         public void Solve(
             RenderTexture vStateTexture, 
             RenderTexture vVelocityTexture, 
