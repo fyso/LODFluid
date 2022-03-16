@@ -74,11 +74,11 @@ void particleToGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     float2 ShallowWaterVel = VelocityMap_RW[Index2D];
     //VelocityMap_RW[Index2D] = ShallowWaterVel * (1.0f - HybridFactor) + CurrVel.xz * HybridFactor;
     
-    if(HybridFactor > 0.99f)
-    {
-        ParticleFilter_RW[i] = 0;
-        StateMap_RW[Index2D] += float4(0.0f, HybridFactor, 0.0f, 0.0f);
-    }
+    //if(HybridFactor > 0.99f)
+    //{
+    //    ParticleFilter_RW[i] = 0;
+    //    StateMap_RW[Index2D] += float4(0.0f, HybridFactor, 0.0f, 0.0f);
+    //}
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]

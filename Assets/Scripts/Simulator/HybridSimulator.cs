@@ -107,7 +107,7 @@ namespace LODFluid
                 Count++;
             if(Count == 1200)
             {
-                Time.timeScale = 0.0f;
+                //Time.timeScale = 0.0f;
             }
         }
 

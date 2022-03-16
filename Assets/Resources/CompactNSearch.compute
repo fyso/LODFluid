@@ -8,6 +8,8 @@ float3 HashGridMin;
 float HashGridCellLength;
 uint3 HashGridResolution;
 
+uint HashFuncParameter[6];
+
 StructuredBuffer<uint> ParticleIndrectArgment_R;
 
 StructuredBuffer<float3> ParticlePosition_R;
@@ -27,6 +29,10 @@ RWStructuredBuffer<uint> ParticleCellIndex_RW;
 
 StructuredBuffer<uint> HashGridCellParticleOffset_R;
 RWStructuredBuffer<uint> HashGridCellParticleCount_RW;
+
+#define HashBucketSize 512
+groupshared uint LocalHashCellKey[HashBucketSize * 3];
+groupshared uint LocalHashCellParticleCount[HashBucketSize * 3];
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void insertParticleIntoHashGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)

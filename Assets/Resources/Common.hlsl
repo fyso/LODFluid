@@ -11,6 +11,7 @@
 #define EPSILON 1e-7f
 #define PI 3.14159274F
 #define FLT_MAX 3.402823466e+38F
+#define UINT_MAX 4294967295
 #define Density0 1000.0f
 
 /* compute morton code */
@@ -24,22 +25,11 @@ uint expandBits3D(uint v)
     return v;
 }
 
-void saveHash(uint vKey, uint vValue, RWStructuredBuffer<uint> vKeyBuffer, RWStructuredBuffer<uint> vValueBuffer)
-{
-    //TODO Hash Value
-}
-
-uint hashFunction(uint vKey)
-{
-    return vKey % 122777;
-}
-
 uint computeMorton3D(uint3 vCellIndex3D)
 {
-    return hashFunction(
-        (expandBits3D(vCellIndex3D.z) << 2) +
+    return ((expandBits3D(vCellIndex3D.z) << 2) +
         (expandBits3D(vCellIndex3D.y) << 1) +
-        expandBits3D(vCellIndex3D.x));
+        expandBits3D(vCellIndex3D.x)) % 122777;
 }
 
 float computeCubicKernelW(float vR, float vCubicRadius)

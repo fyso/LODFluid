@@ -14,7 +14,7 @@ namespace LODFluid
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
-        [Range(0, 0.033f)]
+        [Range(0, 0.05f)]
         public float TimeStep = 0.016666667f;
 
         [Range(0, 0.03f)]
@@ -26,8 +26,8 @@ namespace LODFluid
         [Range(0, 10f)]
         public float Gravity = 9.8f;
 
-        private int DivergenceIterationCount = 3;
-        private int PressureIterationCount = 3;
+        public int DivergenceIterationCount = 3;
+        public int PressureIterationCount = 1;
         public bool UseVolumeMapBoundary = true;
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;
@@ -64,7 +64,7 @@ namespace LODFluid
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
             GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKey(KeyCode.Space) && Time.frameCount % 20 == 0)
             {
                 DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
@@ -75,8 +75,9 @@ namespace LODFluid
             }
         }
 
-        void FixedUpdate()
+        private void FixedUpdate()
         {
+
             Profiler.BeginSample("Delete out of range particle");
             DynamicParticleToolInvoker.GetInstance().DeleteParticleOutofRange(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,

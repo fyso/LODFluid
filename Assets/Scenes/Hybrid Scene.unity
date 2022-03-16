@@ -683,7 +683,7 @@ MonoBehaviour:
   SurfaceTension: 0.05
   Gravity: 9.8
   DivergenceIterationCount: 3
-  PressureIterationCount: 3
+  PressureIterationCount: 1
   Materials:
   - {fileID: 2100000, guid: 1cf9e6530b1beb341b6ecccf254cf279, type: 2}
   - {fileID: 2100000, guid: 4dc86583f8ebc4d44be01aada5cc6c14, type: 2}

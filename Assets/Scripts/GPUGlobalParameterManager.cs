@@ -9,15 +9,15 @@ namespace LODFluid
         public float TimeStep = 0.01666667f;
         public float Gravity = 9.8f;
 
-        public Vector2Int ShallowWaterReolution = new Vector2Int(512, 512);
+        public Vector2Int ShallowWaterReolution = new Vector2Int(1024, 1024);
         public Vector2 ShallowWaterMin = new Vector2(0, 0);
         public float ShallowWaterPipeLength = 1;
         public float ShallowWaterPipeArea = 5;
-        public float ShallowWaterCellLength { get { return Dynamic3DParticleRadius * 4.0f; } }
+        public float ShallowWaterCellLength { get { return Dynamic3DParticleRadius * 2.0f; } }
         public Vector2 ShallowWaterMax { get { return ShallowWaterMin + (Vector2)ShallowWaterReolution * ShallowWaterCellLength; } }
 
         public uint SPHThreadSize = 512;
-        public uint Max3DParticleCount = 200000;
+        public uint Max3DParticleCount = 300000;
         public float Dynamic3DParticleRadius = 0.25f;
         public float Viscosity = 0.01f;
         public float SurfaceTension = 0.05f;
