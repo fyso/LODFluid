@@ -46,6 +46,7 @@ namespace LODFluid
 		Matrix4x4 I_ref_cube;
 
 		ShallowWaterBuffer ShallowWaterResources;
+		Plane Floor = new Plane(Vector3.up, Vector3.zero);
 
 
 		// Use this for initialization
@@ -225,10 +226,10 @@ namespace LODFluid
 			Bounds bounds = collider.bounds;
 			Vector3[,] Rri = new Vector3[size, size];
 
-			int li = (int)Mathf.Max(((bounds.min.x - 1) / 0.1f) + size / 2, 0);
-			int ui = (int)Mathf.Min(((bounds.max.x + 1) / 0.1f) + size / 2, size - 1);
-			int lj = (int)Mathf.Max(((bounds.min.z - 1) / 0.1f) + size / 2, 0);
-			int uj = (int)Mathf.Min(((bounds.max.z + 1) / 0.1f) + size / 2, size - 1);
+			int li = (int)Mathf.Max(((bounds.min.x - 0.5f) / 0.1f) + size / 2, 0);
+			int ui = (int)Mathf.Min(((bounds.max.x + 0.5f) / 0.1f) + size / 2, size - 1);
+			int lj = (int)Mathf.Max(((bounds.min.z - 0.5f) / 0.1f) + size / 2, 0);
+			int uj = (int)Mathf.Min(((bounds.max.z + 0.5f) / 0.1f) + size / 2, size - 1);
 
 			for (int i = 0; i < size; i++)
 			{
@@ -309,20 +310,20 @@ namespace LODFluid
 			torque_block = new Vector3(0, 0, 0);
 			torque_cube = new Vector3(0, 0, 0);
 
-			//Step 1: Compute new_h based on the shallow wave model.
-			ShallowWaterResources.HeightBuffer.SetData(h);
-			ShallowWaterResources.OldHeightBuffer.SetData(old_h);
-			ShallowWaterSolverInvoker.GetInstance().ComputeShallowWater(
-				ShallowWaterResources.HeightBuffer,
-				ShallowWaterResources.OldHeightBuffer,
-				ShallowWaterResources.NewHeightBuffer,
-				new Vector2Int(size, size)
-				);
-			ShallowWaterResources.HeightBuffer.GetData(h);
-			ShallowWaterResources.OldHeightBuffer.GetData(old_h);
-			ShallowWaterResources.NewHeightBuffer.GetData(new_h);
+            //Step 1: Compute new_h based on the shallow wave model.
+            ShallowWaterResources.HeightBuffer.SetData(h);
+            ShallowWaterResources.OldHeightBuffer.SetData(old_h);
+            ShallowWaterSolverInvoker.GetInstance().ComputeShallowWater(
+                ShallowWaterResources.HeightBuffer,
+                ShallowWaterResources.OldHeightBuffer,
+                ShallowWaterResources.NewHeightBuffer,
+                new Vector2Int(size, size)
+                );
+            ShallowWaterResources.HeightBuffer.GetData(h);
+            ShallowWaterResources.OldHeightBuffer.GetData(old_h);
+            ShallowWaterResources.NewHeightBuffer.GetData(new_h);
 
-			/*
+            /*
 			for (int i = 0; i < size; i++){
 				int lower = Mathf.Max(0, i-1);
 				int upper = Mathf.Min(size-1, i+1);
@@ -336,8 +337,9 @@ namespace LODFluid
 			}
 			*/
 
-			//Step 2: Block->Water coupling for two blocks respectively
-			cubeWaterCoupling(block, new_h, ref block_buoyancy, ref torque_block, X);
+
+            //Step 2: Block->Water coupling for two blocks respectively
+            cubeWaterCoupling(block, new_h, ref block_buoyancy, ref torque_block, X);
 			cubeWaterCoupling(cube, new_h, ref cube_buoyancy, ref torque_cube, X);
 
 			// Diminish vh.
@@ -373,8 +375,35 @@ namespace LODFluid
 			}
 
 			//Step 4: Water->Block coupling.
-			Water2BlockCoupling(ref block, ref block_v, ref block_w, block_mass, block_buoyancy, torque_block, I_ref_block);
-			Water2BlockCoupling(ref cube, ref cube_v, ref cube_w, cube_mass, cube_buoyancy, torque_cube, I_ref_cube);
+			// Water2BlockCoupling(ref block, ref block_v, ref block_w, block_mass, block_buoyancy, torque_block, I_ref_block);
+			// Water2BlockCoupling(ref cube, ref cube_v, ref cube_w, cube_mass, cube_buoyancy, torque_cube, I_ref_cube);
+		}
+
+		void AddWater(float [,] h)
+        {
+			var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+			if (Floor.Raycast(ray, out var enter))
+			{
+				var hitPoint = ray.GetPoint(enter);
+				int _i = Mathf.FloorToInt(hitPoint.x / 0.1f) + size / 2;
+				int _j = Mathf.FloorToInt(hitPoint.z / 0.1f) + size / 2;
+				int top_i = Mathf.Max(0, _i - 1);
+				int bottom_i = Mathf.Min(size - 1, _i + 1);
+				int left_j = Mathf.Max(0, _j - 1);
+				int right_j = Mathf.Min(size - 1, _j + 1);
+				float r = Random.Range(0.1f, 0.4f);
+				h[_i, _j] += r;
+				
+				//Delete Water
+				h[top_i, left_j] -= r / 12.0f;
+				h[top_i, _j] -= r / 6.0f;
+				h[top_i, right_j] -= r / 12.0f;
+				h[_i, left_j] -= r / 6.0f;
+				h[_i, right_j] -= r / 6.0f;
+				h[bottom_i, left_j] -= r / 12.0f;
+				h[bottom_i, _j] -= r / 6.0f;
+				h[bottom_i, right_j] -= r / 12.0f;
+			}
 		}
 
 
@@ -392,25 +421,10 @@ namespace LODFluid
 				h[i / size, i % size] = X[i].y;
 			}
 
-			if (Input.GetKeyDown("r"))
+			// Add random water.
+			if (Input.GetMouseButton(1))
 			{
-				// Add random water.
-				int _i = Random.Range(0, size);
-				int _j = Random.Range(0, size);
-				int top_i = Mathf.Max(0, _i - 1);
-				int bottom_i = Mathf.Min(size - 1, _i + 1);
-				int left_j = Mathf.Max(0, _j - 1);
-				int right_j = Mathf.Min(size - 1, _j + 1);
-				float r = Random.Range(0.1f, 0.5f);
-				h[_i, _j] += r;
-				h[top_i, left_j] -= r / 8.0f;
-				h[top_i, _j] -= r / 8.0f;
-				h[top_i, right_j] -= r / 8.0f;
-				h[_i, left_j] -= r / 8.0f;
-				h[_i, right_j] -= r / 8.0f;
-				h[bottom_i, left_j] -= r / 8.0f;
-				h[bottom_i, _j] -= r / 8.0f;
-				h[bottom_i, right_j] -= r / 8.0f;
+				AddWater(h);
 			}
 
 			for (int l = 0; l < 8; l++)

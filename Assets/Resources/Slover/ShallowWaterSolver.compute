@@ -33,6 +33,9 @@ float _VelScale;
 
 float4 _InputControls;
 
+// li, ui, lj, uj
+int4 BlockRegion;
+
 /* Pass 1. Flux field computation */
 [NUMTHREADS]
 void ComputeShallowWater(uint3 id : SV_DispatchThreadID)
@@ -40,4 +43,10 @@ void ComputeShallowWater(uint3 id : SV_DispatchThreadID)
     float newHeight = CURRENT_SAMPLE(HeightBuffer);
     float HeightLaplacian = LEFT_SAMPLE(HeightBuffer) + RIGHT_SAMPLE(HeightBuffer) + UP_SAMPLE(HeightBuffer) + BOTTOM_SAMPLE(HeightBuffer) - 4 * CURRENT_SAMPLE(HeightBuffer);
     CURRENT_SAMPLE(NewHeightBuffer) = CURRENT_SAMPLE(HeightBuffer) + _Damping * (CURRENT_SAMPLE(HeightBuffer) - CURRENT_SAMPLE(OldHeightBuffer)) + _Scale * HeightLaplacian;
+}
+
+[NUMTHREADS]
+void ATimes(uint3 id : SV_DispatchThreadID)
+{
+    
 }

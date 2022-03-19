@@ -19,6 +19,14 @@ namespace LODFluid
             ShallowWaterSolverCS.GetKernelThreadGroupSizes(ComputeShallowWaterKernel, out ThreadGroupX, out ThreadGroupY, out _);
         }
 
+        public void AddRandomWater(
+            ComputeBuffer vHeightBuffer,
+            Vector2Int vReslotion
+            )
+        {
+            return;
+        }
+
         public void ComputeShallowWater(
             ComputeBuffer vHeightBuffer,
             ComputeBuffer vOldHeightBuffer,
@@ -40,6 +48,11 @@ namespace LODFluid
             ShallowWaterSolverCS.SetBuffer(ComputeShallowWaterKernel, "OldHeightBuffer", vOldHeightBuffer);
             ShallowWaterSolverCS.SetBuffer(ComputeShallowWaterKernel, "NewHeightBuffer", vNewHeightBuffer);
             ShallowWaterSolverCS.Dispatch(ComputeShallowWaterKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
+        }
+
+        public void ConjugateGradient(ComputeBuffer vMask, ComputeBuffer vB, ComputeBuffer voX, int li, int ui, int lj, int uj)
+        {
+            return;
         }
     }
 }
