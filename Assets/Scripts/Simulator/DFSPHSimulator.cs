@@ -64,7 +64,7 @@ namespace LODFluid
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
             GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
 
-            if (Input.GetKey(KeyCode.Space) && Time.frameCount % 20 == 0)
+            if (Input.GetKeyDown(KeyCode.Space)/* && Time.frameCount % 20 == 0*/)
             {
                 DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
