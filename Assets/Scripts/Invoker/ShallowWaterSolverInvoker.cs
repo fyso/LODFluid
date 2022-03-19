@@ -3,12 +3,10 @@ using UnityEngine.Profiling;
 
 namespace LODFluid
 {
-    public class ShallowWaterSolverInvoker: Singleton<ShallowWaterSolverInvoker>
+    public class ShallowWaterSolverInvoker : Singleton<ShallowWaterSolverInvoker>
     {
         private ComputeShader ShallowWaterSolverCS;
-        private int fluxComputationKernel;
-        private int fluxApplyKernel;
-        private int addWaterKernel;
+        private int ComputeShallowWaterKernel;
 
         private uint ThreadGroupX;
         private uint ThreadGroupY;
@@ -16,53 +14,32 @@ namespace LODFluid
         public ShallowWaterSolverInvoker()
         {
             ShallowWaterSolverCS = Resources.Load<ComputeShader>("Slover/ShallowWaterSolver");
+            ComputeShallowWaterKernel = ShallowWaterSolverCS.FindKernel("ComputeShallowWater");
 
-            fluxComputationKernel = ShallowWaterSolverCS.FindKernel("FluxComputation");
-            fluxApplyKernel = ShallowWaterSolverCS.FindKernel("FluxApply");
-            addWaterKernel = ShallowWaterSolverCS.FindKernel("AddWater");
-            ShallowWaterSolverCS.GetKernelThreadGroupSizes(fluxComputationKernel, out ThreadGroupX, out ThreadGroupY, out _);
+            ShallowWaterSolverCS.GetKernelThreadGroupSizes(ComputeShallowWaterKernel, out ThreadGroupX, out ThreadGroupY, out _);
         }
 
-        public void AddWater(RenderTexture vStateTexture, Vector4 vInputControls, float vTimeDelta, Vector2Int vReslotion)
-        {
-            ShallowWaterSolverCS.SetTexture(addWaterKernel, "HeightMap", vStateTexture);
-            ShallowWaterSolverCS.SetVector("_InputControls", vInputControls);
-            ShallowWaterSolverCS.SetFloat("_TimeDelta", vTimeDelta);
-            ShallowWaterSolverCS.SetInt("_Width", vReslotion.x);
-            ShallowWaterSolverCS.SetInt("_Height", vReslotion.y);
-
-            ShallowWaterSolverCS.Dispatch(addWaterKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
-        }
-
-        public void Solve(
-            RenderTexture vStateTexture, 
-            RenderTexture vVelocityTexture, 
-            RenderTexture vFluxMap, 
-            Vector2Int vReslotion,
-            float vTimeDelta,
-            float vGravity,
-            float vPipeArea,
-            float vPipeLength
+        public void ComputeShallowWater(
+            ComputeBuffer vHeightBuffer,
+            ComputeBuffer vOldHeightBuffer,
+            ComputeBuffer vNewHeightBuffer,
+            Vector2Int vReslotion
             )
         {
-            Vector2 CellSize = new Vector2(1f , 1f);
-            ShallowWaterSolverCS.SetInt("_Width", vReslotion.x);
-            ShallowWaterSolverCS.SetInt("_Height", vReslotion.y);
-            ShallowWaterSolverCS.SetFloat("_TimeDelta", vTimeDelta);
-            ShallowWaterSolverCS.SetFloat("_Gravity", vGravity);
-            ShallowWaterSolverCS.SetVector("_CellSize", CellSize);
-            ShallowWaterSolverCS.SetFloat("_PipeArea", vPipeArea);
-            ShallowWaterSolverCS.SetFloat("_PipeLength", vPipeLength);
+            ShallowWaterSolverCS.SetInts("Resolution", vReslotion.x, vReslotion.y);
 
-            ShallowWaterSolverCS.SetTexture(fluxComputationKernel, "HeightMap", vStateTexture);
-            ShallowWaterSolverCS.SetTexture(fluxComputationKernel, "VelocityMap", vVelocityTexture);
-            ShallowWaterSolverCS.SetTexture(fluxComputationKernel, "FluxMap", vFluxMap);
-            ShallowWaterSolverCS.Dispatch(fluxComputationKernel, (int)Mathf.Ceil((float)vReslotion.x/ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y/ThreadGroupY), 1);
+            // Scale: dt^2 * H * h / dt^2
+            //float Scale = vTimeDelta * vTimeDelta * vConstH * vGravity / (CellSize.x * CellSize.x);
+            float Scale = 0.005f;
+            ShallowWaterSolverCS.SetFloat("_Scale", Scale);
+            float vDamping = 0.996f;
+            ShallowWaterSolverCS.SetFloat("_Damping", vDamping);
 
-            ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "HeightMap", vStateTexture);
-            ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "VelocityMap", vVelocityTexture);
-            ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "FluxMap", vFluxMap);
-            ShallowWaterSolverCS.Dispatch(fluxApplyKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
+
+            ShallowWaterSolverCS.SetBuffer(ComputeShallowWaterKernel, "HeightBuffer", vHeightBuffer);
+            ShallowWaterSolverCS.SetBuffer(ComputeShallowWaterKernel, "OldHeightBuffer", vOldHeightBuffer);
+            ShallowWaterSolverCS.SetBuffer(ComputeShallowWaterKernel, "NewHeightBuffer", vNewHeightBuffer);
+            ShallowWaterSolverCS.Dispatch(ComputeShallowWaterKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
         }
     }
 }
