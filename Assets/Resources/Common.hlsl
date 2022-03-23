@@ -29,7 +29,7 @@ uint computeMorton3D(uint3 vCellIndex3D)
 {
     return ((expandBits3D(vCellIndex3D.z) << 2) +
         (expandBits3D(vCellIndex3D.y) << 1) +
-        expandBits3D(vCellIndex3D.x));
+        expandBits3D(vCellIndex3D.x)) % 218357;
 }
 
 float computeCubicKernelW(float vR, float vCubicRadius)

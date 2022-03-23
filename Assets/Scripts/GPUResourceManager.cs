@@ -151,15 +151,12 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 3);
 
-            Vector3Int HashGridRes = GPUGlobalParameterManager.GetInstance().HashResolution;
-            int HashGridCount = HashGridRes.x * HashGridRes.y * HashGridRes.z;
-
             HashGridCellParticleCountBuffer = new ComputeBuffer(
-                HashGridCount, 
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount * 2, 
                 sizeof(uint));
 
             HashGridCellParticleOffsetBuffer = new ComputeBuffer(
-                HashGridCount, 
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount * 2,
                 sizeof(uint));
 
             ShallowWaterResources = new ShallowWaterBuffer(GPUGlobalParameterManager.GetInstance().ShallowWaterReolution);

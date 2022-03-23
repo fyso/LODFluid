@@ -12,7 +12,7 @@ namespace LODFluid
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
-        [Range(0, 0.05f)]
+        [Range(0.005f, 0.05f)]
         public float TimeStep = 0.016666667f;
 
         [Range(0, 0.03f)]
@@ -88,24 +88,6 @@ namespace LODFluid
             }
         }
 
-        /* compute morton code */
-        private uint expandBits3D(uint v)
-        {
-            v &= 0x000003ff; // x = ---- ---- ---- ---- ---- --98 7654 3210
-            v = (v ^ (v << 16)) & 0xff0000ff; // x = ---- --98 ---- ---- ---- ---- 7654 3210
-            v = (v ^ (v << 8)) & 0x0300f00f; // x = ---- --98 ---- ---- 7654 ---- ---- 3210
-            v = (v ^ (v << 4)) & 0x030c30c3; // x = ---- --98 ---- 76-- --54 ---- 32-- --10
-            v = (v ^ (v << 2)) & 0x09249249; // x = ---- 9--8 --7- -6-- 5--4 --3- -2-- 1--0
-            return v;
-        }
-
-        private uint computeMorton3D(uint vCellIndex3DX, uint vCellIndex3DY, uint vCellIndex3DZ)
-        {
-            return ((expandBits3D(vCellIndex3DZ) << 2) +
-                (expandBits3D(vCellIndex3DY) << 1) +
-                expandBits3D(vCellIndex3DX));
-        }
-
         private void FixedUpdate()
         {
             Profiler.BeginSample("Delete out of range particle");
@@ -132,14 +114,11 @@ namespace LODFluid
                     GPUGlobalParameterManager.GetInstance().HashResolution);
             Profiler.EndSample();
 
-            if(Time.frameCount % 1 == 0)
-            {
-                Profiler.BeginSample("Sort by MortonCode");
-                CompactNSearch.Sort(
-                        ref GPUResourceManager.GetInstance().Dynamic3DParticle,
-                        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
-                Profiler.EndSample();
-            }
+            Profiler.BeginSample("Sort by MortonCode");
+            CompactNSearch.Sort(
+                ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
+            Profiler.EndSample();
 
             Profiler.BeginSample("Generate hash data");
             CompactNSearch.GenerateHashData(
@@ -168,7 +147,7 @@ namespace LODFluid
             if (UseEnforceBoundary)
             {
                 Profiler.BeginSample("Apply boundary influence");
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 2; i++)
                 {
                     EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
                             BoundaryObjects,

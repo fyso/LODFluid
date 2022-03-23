@@ -360,7 +360,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31b2188571ed9304081f56140342c9e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WaterGeneratePosition: {x: 7.45, y: 22.67, z: -5.6}
+  WaterGeneratePosition: {x: 7.45, y: 18.38, z: -5.6}
   WaterGenerateResolution: {x: 32, y: 32, z: 32}
   WaterGenerateInitVelocity: {x: 0, y: 0, z: 0}
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
@@ -370,8 +370,8 @@ MonoBehaviour:
   Viscosity: 0.0137
   SurfaceTension: 0.046
   Gravity: 9.8
-  DivergenceIterationCount: 2
-  PressureIterationCount: 4
+  DivergenceIterationCount: 1
+  PressureIterationCount: 2
   UseVolumeMapBoundary: 1
   UseEnforceBoundary: 1
   DivergenceFreeIteration: 1
