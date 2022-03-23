@@ -9,16 +9,14 @@ namespace LODFluid
         public ComputeBuffer ParticlePositionBuffer;
         public ComputeBuffer ParticleVelocityBuffer;
         public ComputeBuffer ParticleFilterBuffer;
-        public float ParticleRadius;
-        public uint MaxParticleSize;
+        public ComputeBuffer ParticleMortonCodeBuffer;
 
-        public ParticleBuffer(uint vParticleBufferSize, float vParticleRadius, uint vDimension)
+        public ParticleBuffer(uint vParticleBufferSize)
         {
-            ParticlePositionBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
-            ParticleVelocityBuffer = new ComputeBuffer((int)vParticleBufferSize, (int)vDimension * sizeof(float));
+            ParticlePositionBuffer = new ComputeBuffer((int)vParticleBufferSize, 3 * sizeof(float));
+            ParticleVelocityBuffer = new ComputeBuffer((int)vParticleBufferSize, 3 * sizeof(float));
             ParticleFilterBuffer = new ComputeBuffer((int)vParticleBufferSize, sizeof(uint));
-            ParticleRadius = vParticleRadius;
-            MaxParticleSize = vParticleBufferSize;
+            ParticleMortonCodeBuffer = new ComputeBuffer((int)vParticleBufferSize, sizeof(uint));
         }
 
         ~ParticleBuffer()
@@ -26,6 +24,7 @@ namespace LODFluid
             ParticlePositionBuffer.Release();
             ParticleVelocityBuffer.Release();
             ParticleFilterBuffer.Release();
+            ParticleMortonCodeBuffer.Release();
         }
     }
 
@@ -80,19 +79,11 @@ namespace LODFluid
     public class GPUResourceManager : Singleton<GPUResourceManager>
     {
         public ParticleBuffer Dynamic3DParticle;
-        public ParticleBuffer DynamicSorted3DParticle;
-        public ParticleBuffer DynamicNarrow3DParticle;
 
         public List<CubicMap> SignedDistance;
         public List<CubicMap> Volume;
 
         public ComputeBuffer Dynamic3DParticleIndirectArgumentBuffer;
-
-        public ComputeBuffer Dynamic3DParticleCellIndexBuffer;
-        public ComputeBuffer Dynamic3DParticleInnerSortBuffer;
-
-        public ComputeBuffer ScanTempBuffer1;
-        public ComputeBuffer ScanTempBuffer2;
 
         public ComputeBuffer HashGridCellParticleCountBuffer;
         public ComputeBuffer HashGridCellParticleOffsetBuffer;
@@ -104,19 +95,14 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleNormalBuffer;
         public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
-        public ComputeBuffer Dynamic3DParticleScatterOffsetBuffer;
 
         public ShallowWaterBuffer ShallowWaterResources;
 
         ~GPUResourceManager()
         {
             Dynamic3DParticleIndirectArgumentBuffer.Release();
-            Dynamic3DParticleCellIndexBuffer.Release();
-            Dynamic3DParticleInnerSortBuffer.Release();
             HashGridCellParticleCountBuffer.Release();
             HashGridCellParticleOffsetBuffer.Release();
-            ScanTempBuffer1.Release();
-            ScanTempBuffer2.Release();
             Dynamic3DParticleDensityBuffer.Release();
             Dynamic3DParticleAlphaBuffer.Release();
             Dynamic3DParticleDensityChangeBuffer.Release();
@@ -124,7 +110,6 @@ namespace LODFluid
             Dynamic3DParticleNormalBuffer.Release();
             Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
             Dynamic3DParticleBoundaryVelocityBuffer.Release();
-            Dynamic3DParticleScatterOffsetBuffer.Release();
         }
 
         public GPUResourceManager()
@@ -136,28 +121,7 @@ namespace LODFluid
             int[] ParticleIndirectArgumentCPU = new int[7] { 1, 1, 1, 3, 0, 0, 0 };
             Dynamic3DParticleIndirectArgumentBuffer.SetData(ParticleIndirectArgumentCPU);
 
-            Dynamic3DParticle = new ParticleBuffer(
-                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
-                3);
-
-            DynamicSorted3DParticle = new ParticleBuffer(
-                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
-                3);
-
-            DynamicNarrow3DParticle = new ParticleBuffer(
-                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius,
-                3);
-
-            Dynamic3DParticleCellIndexBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                sizeof(uint));
-
-            Dynamic3DParticleInnerSortBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                sizeof(uint));
+            Dynamic3DParticle = new ParticleBuffer(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
 
             Dynamic3DParticleDensityBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
@@ -187,21 +151,16 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 3);
 
-            Dynamic3DParticleScatterOffsetBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                sizeof(uint));
+            Vector3Int HashGridRes = GPUGlobalParameterManager.GetInstance().HashResolution;
+            int HashGridCount = HashGridRes.x * HashGridRes.y * HashGridRes.z;
 
             HashGridCellParticleCountBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount, 
+                HashGridCount, 
                 sizeof(uint));
 
             HashGridCellParticleOffsetBuffer = new ComputeBuffer(
-                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount, 
+                HashGridCount, 
                 sizeof(uint));
-
-            uint SPHThreadSize = GPUGlobalParameterManager.GetInstance().SPHThreadSize;
-            ScanTempBuffer1 = new ComputeBuffer((int)SPHThreadSize * (int)SPHThreadSize, sizeof(uint));
-            ScanTempBuffer2 = new ComputeBuffer((int)SPHThreadSize, sizeof(uint));
 
             ShallowWaterResources = new ShallowWaterBuffer(GPUGlobalParameterManager.GetInstance().ShallowWaterReolution);
         }

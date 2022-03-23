@@ -6,8 +6,6 @@ namespace LODFluid
 {
     public class DFSPHSimulator : MonoBehaviour
     {
-        public Vector3 SimulationRangeMin = new Vector3(0, 0, 0);
-        public Vector3Int SimulationRangeRes = new Vector3Int(64, 64, 64);
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
         public Vector3 WaterGenerateInitVelocity = new Vector3(0, 0, 0);
@@ -32,12 +30,14 @@ namespace LODFluid
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;
 
+        private DynamicParticleToolInvoker DynamicParticleTool;
         private CompactNSearchInvoker CompactNSearch;
+        private DivergenceFreeSPHSolverInvoker DivergenceFreeSPHSolver;
 
         private void OnDrawGizmos()
         {
-            Vector3 SimulationMin = SimulationRangeMin;
-            Vector3 SimulationMax = SimulationRangeMin + (Vector3)SimulationRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
+            Vector3 SimulationMin = GPUGlobalParameterManager.GetInstance().SimualtionRangeMin;
+            Vector3 SimulationMax = GPUGlobalParameterManager.GetInstance().SimualtionRangeMin + (Vector3)GPUGlobalParameterManager.GetInstance().SimualtionRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
             Gizmos.color = new Color(1.0f, 0.0f, 0.0f);
             Gizmos.DrawWireCube((SimulationMin + SimulationMax) * 0.5f, SimulationMax - SimulationMin);
 
@@ -50,6 +50,10 @@ namespace LODFluid
         void Start()
         {
             CompactNSearch = new CompactNSearchInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+            DynamicParticleTool = new DynamicParticleToolInvoker(
+                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
+            DivergenceFreeSPHSolver = new DivergenceFreeSPHSolverInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
 
             VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,
@@ -57,12 +61,17 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().SignedDistance,
                 GPUGlobalParameterManager.GetInstance().SearchRadius,
                 GPUGlobalParameterManager.GetInstance().CubicZero);
+
+            DynamicParticleTool.AddParticleBlock(
+                GPUResourceManager.GetInstance().Dynamic3DParticle,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                WaterGeneratePosition,
+                WaterGenerateResolution,
+                WaterGenerateInitVelocity);
         }
 
         void Update()
         {
-            GPUGlobalParameterManager.GetInstance().SimualtionRangeMin = SimulationRangeMin;
-            GPUGlobalParameterManager.GetInstance().SimualtionRangeRes = SimulationRangeRes;
             GPUGlobalParameterManager.GetInstance().TimeStep = TimeStep;
             GPUGlobalParameterManager.GetInstance().Viscosity = Viscosity;
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
@@ -70,7 +79,7 @@ namespace LODFluid
 
             if (Input.GetKeyDown(KeyCode.Space)/* && Time.frameCount % 20 == 0*/)
             {
-                DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
+                DynamicParticleTool.AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     WaterGeneratePosition,
@@ -79,11 +88,28 @@ namespace LODFluid
             }
         }
 
+        /* compute morton code */
+        private uint expandBits3D(uint v)
+        {
+            v &= 0x000003ff; // x = ---- ---- ---- ---- ---- --98 7654 3210
+            v = (v ^ (v << 16)) & 0xff0000ff; // x = ---- --98 ---- ---- ---- ---- 7654 3210
+            v = (v ^ (v << 8)) & 0x0300f00f; // x = ---- --98 ---- ---- 7654 ---- ---- 3210
+            v = (v ^ (v << 4)) & 0x030c30c3; // x = ---- --98 ---- 76-- --54 ---- 32-- --10
+            v = (v ^ (v << 2)) & 0x09249249; // x = ---- 9--8 --7- -6-- 5--4 --3- -2-- 1--0
+            return v;
+        }
+
+        private uint computeMorton3D(uint vCellIndex3DX, uint vCellIndex3DY, uint vCellIndex3DZ)
+        {
+            return ((expandBits3D(vCellIndex3DZ) << 2) +
+                (expandBits3D(vCellIndex3DY) << 1) +
+                expandBits3D(vCellIndex3DX));
+        }
+
         private void FixedUpdate()
         {
-
             Profiler.BeginSample("Delete out of range particle");
-            DynamicParticleToolInvoker.GetInstance().DeleteParticleOutofRange(
+            DynamicParticleTool.DeleteParticleOutofRange(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
@@ -92,25 +118,35 @@ namespace LODFluid
             Profiler.EndSample();
 
             Profiler.BeginSample("Narrow");
-            DynamicParticleToolInvoker.GetInstance().NarrowParticleData(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
-                    GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleScatterOffsetBuffer);
+            DynamicParticleTool.NarrowParticleData(
+                    ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
             Profiler.EndSample();
 
-            Profiler.BeginSample("Counting sort");
-            CompactNSearch.CountingSort(
-                    GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
-                    GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+            Profiler.BeginSample("Compute MortonCode");
+            CompactNSearch.ComputeMortonCode(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                    GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
-                    GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength,
                     GPUGlobalParameterManager.GetInstance().HashResolution);
+            Profiler.EndSample();
+
+            if(Time.frameCount % 1 == 0)
+            {
+                Profiler.BeginSample("Sort by MortonCode");
+                CompactNSearch.Sort(
+                        ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
+                Profiler.EndSample();
+            }
+
+            Profiler.BeginSample("Generate hash data");
+            CompactNSearch.GenerateHashData(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer);
             Profiler.EndSample();
 
             if (UseVolumeMapBoundary)
@@ -118,7 +154,7 @@ namespace LODFluid
                 Profiler.BeginSample("Query closest point and volume");
                 VolumeMapBoundarySolverInvoker.GetInstance().QueryClosestPointAndVolume(
                         GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                        GPUResourceManager.GetInstance().Dynamic3DParticle,
                         BoundaryObjects,
                         GPUResourceManager.GetInstance().Volume,
                         GPUResourceManager.GetInstance().SignedDistance,
@@ -136,7 +172,7 @@ namespace LODFluid
                 {
                     EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
                             BoundaryObjects,
-                            GPUResourceManager.GetInstance().DynamicSorted3DParticle,
+                            GPUResourceManager.GetInstance().Dynamic3DParticle,
                             GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                             GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
                         );
@@ -145,9 +181,8 @@ namespace LODFluid
             }
 
             Profiler.BeginSample("Slove divergence-free SPH");
-            DivergenceFreeSPHSolverInvoker.GetInstance().Slove(
-                    GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+            DivergenceFreeSPHSolver.Slove(
+                    ref GPUResourceManager.GetInstance().Dynamic3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
                     GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
                     GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
