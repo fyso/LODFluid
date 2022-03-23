@@ -61,7 +61,7 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
         
         float3 Nor = dot(BoundaryVel, Normal) * Normal;
         float3 Tan =  BoundaryVel - Nor;
-        TargetParticleVelocity_RW[i] = Tan;
+        TargetParticleVelocity_RW[i] = float3(0.0f, 0.0f, 0.0f);
         TargetParticlePosition_RW[i] = Pos + Delta * Normal;
     }
 }

@@ -32,6 +32,8 @@ namespace LODFluid
         public bool UseEnforceBoundary = true;
         public bool DivergenceFreeIteration = true;
 
+        private CompactNSearchInvoker CompactNSearch;
+
         private void OnDrawGizmos()
         {
             Vector3 SimulationMin = SimulationRangeMin;
@@ -47,6 +49,8 @@ namespace LODFluid
 
         void Start()
         {
+            CompactNSearch = new CompactNSearchInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+
             VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,
                 GPUResourceManager.GetInstance().Volume,
@@ -96,7 +100,7 @@ namespace LODFluid
             Profiler.EndSample();
 
             Profiler.BeginSample("Counting sort");
-            CompactNSearchInvoker.GetInstance().CountingSort(
+            CompactNSearch.CountingSort(
                     GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
@@ -104,8 +108,6 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
-                    GPUResourceManager.GetInstance().ScanTempBuffer1,
-                    GPUResourceManager.GetInstance().ScanTempBuffer2,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength,
                     GPUGlobalParameterManager.GetInstance().HashResolution);

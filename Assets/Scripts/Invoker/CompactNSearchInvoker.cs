@@ -4,17 +4,21 @@ using UnityEngine;
 
 namespace LODFluid
 {
-    public class CompactNSearchInvoker : Singleton<CompactNSearchInvoker>
+    public class CompactNSearchInvoker
     {
         private ComputeShader CompactNSearchCS;
         private int insertParticleIntoHashGridKernel;
         private int countingSortFullKernel;
 
-        public CompactNSearchInvoker()
+        private GPUScan GPUScanner;
+
+        public CompactNSearchInvoker(uint vMaxParticleSize)
         {
             CompactNSearchCS = Resources.Load<ComputeShader>("CompactNSearch");
             insertParticleIntoHashGridKernel = CompactNSearchCS.FindKernel("insertParticleIntoHashGrid");
             countingSortFullKernel = CompactNSearchCS.FindKernel("countingSortFull");
+
+            GPUScanner = new GPUScan(vMaxParticleSize);
         }
         
         public void CountingSort(
@@ -25,8 +29,6 @@ namespace LODFluid
             ComputeBuffer voHashGridCellParticleOffsetBuffer,
             ComputeBuffer vParticleCellIndexCache,
             ComputeBuffer vParticleInnerSortIndexCache,
-            ComputeBuffer vHashScanCache1,
-            ComputeBuffer vHashScanCache2,
             Vector3 vHashGridMin,
             float vHashGridCellLength,
             Vector3Int vHashGridResolution)
@@ -43,7 +45,7 @@ namespace LODFluid
             CompactNSearchCS.SetBuffer(insertParticleIntoHashGridKernel, "ParticleInnerSortIndex_RW", vParticleInnerSortIndexCache);
             CompactNSearchCS.DispatchIndirect(insertParticleIntoHashGridKernel, vParticleIndirectArgumentBuffer);
 
-            GPUOperation.GetInstance().Scan(voHashGridCellParticleCountBuffer.count, voHashGridCellParticleCountBuffer, voHashGridCellParticleOffsetBuffer, vHashScanCache1, vHashScanCache2);
+            GPUScanner.Scan(voHashGridCellParticleCountBuffer, voHashGridCellParticleOffsetBuffer);
 
             CompactNSearchCS.SetBuffer(countingSortFullKernel, "ParticleIndrectArgment_R", vParticleIndirectArgumentBuffer);
             CompactNSearchCS.SetBuffer(countingSortFullKernel, "ParticleCellIndex_R", vParticleCellIndexCache);

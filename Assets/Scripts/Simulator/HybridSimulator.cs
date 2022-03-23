@@ -28,6 +28,8 @@ namespace LODFluid
         public int DivergenceIterationCount = 3;
         public int PressureIterationCount = 3;
 
+        CompactNSearchInvoker CompactNSearch;
+
         [Header("Shallow Water")]
         public Material[] Materials;
         public ComputeShader ShallowWaterShader;
@@ -74,6 +76,8 @@ namespace LODFluid
             {
                 material.SetTexture(StateTextureKey, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture);
             }
+
+            CompactNSearch = new CompactNSearchInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
 
             VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,
@@ -144,7 +148,7 @@ namespace LODFluid
             Profiler.EndSample();
 
             Profiler.BeginSample("Counting sort");
-            CompactNSearchInvoker.GetInstance().CountingSort(
+            CompactNSearch.CountingSort(
                     GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
                     GPUResourceManager.GetInstance().DynamicSorted3DParticle,
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
@@ -152,8 +156,6 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
                     GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
-                    GPUResourceManager.GetInstance().ScanTempBuffer1,
-                    GPUResourceManager.GetInstance().ScanTempBuffer2,
                     GPUGlobalParameterManager.GetInstance().HashGridMin,
                     GPUGlobalParameterManager.GetInstance().HashCellLength,
                     GPUGlobalParameterManager.GetInstance().HashResolution);

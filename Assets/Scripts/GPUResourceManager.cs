@@ -199,9 +199,9 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount, 
                 sizeof(uint));
 
-            uint SPhThreadSize = GPUGlobalParameterManager.GetInstance().SPHThreadSize;
-            ScanTempBuffer1 = new ComputeBuffer((int)SPhThreadSize * (int)SPhThreadSize, sizeof(uint));
-            ScanTempBuffer2 = new ComputeBuffer((int)SPhThreadSize, sizeof(uint));
+            uint SPHThreadSize = GPUGlobalParameterManager.GetInstance().SPHThreadSize;
+            ScanTempBuffer1 = new ComputeBuffer((int)SPHThreadSize * (int)SPHThreadSize, sizeof(uint));
+            ScanTempBuffer2 = new ComputeBuffer((int)SPHThreadSize, sizeof(uint));
 
             ShallowWaterResources = new ShallowWaterBuffer(GPUGlobalParameterManager.GetInstance().ShallowWaterReolution);
         }
