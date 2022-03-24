@@ -26,6 +26,7 @@ namespace LODFluid
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticleIndirectArgment_R", vParticleCountArgment);
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticlePosition_RW", vTargetParticle.ParticlePositionBuffer);
             ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticleVelocity_RW", vTargetParticle.ParticleVelocityBuffer);
+            ForceBasedBoundaryCS.SetBuffer(solveBoundaryKernel, "TargetParticleFilter_RW", vTargetParticle.ParticleFilterBuffer);
 
             for (int i = 0; i < vBoundaryObjects.Count; i++)
             {

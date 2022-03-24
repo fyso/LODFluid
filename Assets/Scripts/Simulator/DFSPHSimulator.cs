@@ -77,7 +77,7 @@ namespace LODFluid
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
             GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
 
-            if (Input.GetKeyDown(KeyCode.Space)/* && Time.frameCount % 20 == 0*/)
+            if (Input.GetKeyDown(KeyCode.Space))
             {
                 DynamicParticleTool.AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,
@@ -86,9 +86,21 @@ namespace LODFluid
                     WaterGenerateResolution,
                     WaterGenerateInitVelocity);
             }
+
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                uint[] ArgumentCPU = new uint[7];
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ArgumentCPU);
+                Debug.Log(ArgumentCPU[4]);
+            }
         }
 
         private void FixedUpdate()
+        {
+            DFSPHSolve();
+        }
+
+        private void DFSPHSolve()
         {
             Profiler.BeginSample("Delete out of range particle");
             DynamicParticleTool.DeleteParticleOutofRange(
@@ -147,15 +159,12 @@ namespace LODFluid
             if (UseEnforceBoundary)
             {
                 Profiler.BeginSample("Apply boundary influence");
-                for (int i = 0; i < 2; i++)
-                {
-                    EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
-                            BoundaryObjects,
-                            GPUResourceManager.GetInstance().Dynamic3DParticle,
-                            GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                            GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
-                        );
-                }
+                EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
+                        BoundaryObjects,
+                        GPUResourceManager.GetInstance().Dynamic3DParticle,
+                        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                        GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
+                    );
                 Profiler.EndSample();
             }
 

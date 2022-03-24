@@ -9,6 +9,7 @@ StructuredBuffer<uint> TargetParticleIndirectArgment_R;
 
 RWStructuredBuffer<float3> TargetParticlePosition_RW;
 RWStructuredBuffer<float3> TargetParticleVelocity_RW;
+RWStructuredBuffer<uint> TargetParticleFilter_RW;
 
 SamplerState Sampler_Trilinear_Clamp_SignedDistance;
 
@@ -51,17 +52,6 @@ void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     float Dist = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, UVCoord, 0);
     float3 Normal = estimateNormal(UVCoord);
     //apply Boundary effect
-    if (Dist <= 0.0f && length(Normal) > EPSILON)
-    {
-        Normal = mul(Rotation, float4(Normal, 1.0f)).xyz;
-        Normal = normalize(Normal);
-        
-        float Delta = 2.0f * ParticleRadius - Dist;
-        Delta = min(Delta, 0.1f * ParticleRadius);
-        
-        float3 Nor = dot(BoundaryVel, Normal) * Normal;
-        float3 Tan =  BoundaryVel - Nor;
-        TargetParticleVelocity_RW[i] = float3(0.0f, 0.0f, 0.0f);
-        TargetParticlePosition_RW[i] = Pos + Delta * Normal;
-    }
+    if (Dist <= 0.0f)
+        TargetParticleFilter_RW[i] = 0;
 }

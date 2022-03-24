@@ -45,6 +45,7 @@ void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     
     uint Current2Bit = (CurrKey >> ShiftWidth) & 3;
     
+    [unroll]
     for (int CurrBitBucket = 0; CurrBitBucket < 4; CurrBitBucket++)
     {
         LocalMask[ThreadIdx] = 0;
@@ -63,8 +64,8 @@ void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
         //Hillis-Steele Scan in block
         int Partner = 0;
         uint Sum = 0;
-        uint MaxStep = log2(RADIX_SORT_THREAD_NUM);
-        for (int k = 0; k < MaxStep; k++)
+        [unroll]
+        for (int k = 0; k < log2(RADIX_SORT_THREAD_NUM); k++)
         {
             Partner = ThreadIdx - (1 << k);
             if (Partner >= 0)

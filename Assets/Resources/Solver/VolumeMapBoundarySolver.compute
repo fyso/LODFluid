@@ -914,10 +914,7 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
         if (CurrDist < OldDist)
         {
             ClosestPointAndVolume_RW[i] = float4(CurrClosestPoint, VolumeData);
-            
-            float3 Nor = dot(BoundaryVelocity, normalize(DisplacementVector)) * normalize(DisplacementVector);
-            float3 Tan = BoundaryVelocity - Nor;
-            BoundaryVelocity_RW[i] = dot(BoundaryVelocity, Nor) * BoundaryVelocity;
+            BoundaryVelocity_RW[i] = BoundaryVelocity;
         }
     }
 }

@@ -33,10 +33,10 @@ namespace LODFluid
             scanAddBucketResultKernel = GPUScanCS.FindKernel("scanAddBucketResult");
             GPUScanCS.GetKernelThreadGroupSizes(scanInBucketKernel, out scanInBucketGroupThreadNum, out _, out _);
             GPUScanCS.GetKernelThreadGroupSizes(scanAddBucketResultKernel, out scanAddBucketResultGroupThreadNum, out _, out _);
-            ScanCache1 = new ComputeBuffer((int)scanInBucketGroupThreadNum, sizeof(uint));
+            ScanCache1 = new ComputeBuffer((int)Mathf.Pow(scanInBucketGroupThreadNum, 2), sizeof(uint));
             if (Mathf.CeilToInt((float)vScanBufferSize / scanInBucketGroupThreadNum) > 0)
             {
-                ScanCache2 = new ComputeBuffer((int)Mathf.Pow(scanInBucketGroupThreadNum, 2), sizeof(uint));
+                ScanCache2 = new ComputeBuffer((int)scanInBucketGroupThreadNum, sizeof(uint));
             }
             ScanArrayCount = vScanBufferSize;
         }
