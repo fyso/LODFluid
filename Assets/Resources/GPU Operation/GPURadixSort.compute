@@ -36,7 +36,7 @@ void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     
     uint CurrKey = 0;
     uint CurrValue = 0;
-    if (i < IndrectArgment_R[ParticleCountArgumentOffset])
+    if (i < ElementCount)
     {
         CurrKey = OldKey_RW[i];
         CurrValue = OldValue_RW[i];
@@ -54,7 +54,7 @@ void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
         GroupMemoryBarrierWithGroupSync();
         
         bool Curr2BitEqualsCurrBitBucket = false;
-        if (i < IndrectArgment_R[ParticleCountArgumentOffset])
+        if (i < ElementCount)
         {
             Curr2BitEqualsCurrBitBucket = Current2Bit == CurrBitBucket;
             LocalMask[ThreadIdx] = Curr2BitEqualsCurrBitBucket;
@@ -132,6 +132,7 @@ void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID
     //push to graphic memory
     if (i >= ElementCount)
         return;
+    
     OldKey_RW[i] = LocalKey[ThreadIdx];
     OldValue_RW[i] = LocalValue[ThreadIdx];
     PrefixSum_RW[i] = LocalMergeScanMask[ThreadIdx];
