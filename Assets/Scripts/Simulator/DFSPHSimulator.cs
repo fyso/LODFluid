@@ -31,7 +31,7 @@ namespace LODFluid
         public bool DivergenceFreeIteration = true;
 
         private DynamicParticleToolInvoker DynamicParticleTool;
-        private CompactNSearchInvoker CompactNSearch;
+        private GPUCountingSortHash CompactNSearch;
         private DivergenceFreeSPHSolverInvoker DivergenceFreeSPHSolver;
 
         private void OnDrawGizmos()
@@ -49,7 +49,7 @@ namespace LODFluid
 
         void Start()
         {
-            CompactNSearch = new CompactNSearchInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+            CompactNSearch = new GPUCountingSortHash(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
             DynamicParticleTool = new DynamicParticleToolInvoker(
                 GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
@@ -117,27 +117,14 @@ namespace LODFluid
                     GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
             Profiler.EndSample();
 
-            Profiler.BeginSample("Compute MortonCode");
-            CompactNSearch.ComputeMortonCode(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                    GPUGlobalParameterManager.GetInstance().HashGridMin,
-                    GPUGlobalParameterManager.GetInstance().HashCellLength,
-                    GPUGlobalParameterManager.GetInstance().HashResolution);
-            Profiler.EndSample();
-
             Profiler.BeginSample("Sort by MortonCode");
-            CompactNSearch.Sort(
+            CompactNSearch.CountingHashSort(
                 ref GPUResourceManager.GetInstance().Dynamic3DParticle,
-                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("Generate hash data");
-            CompactNSearch.GenerateHashData(
-                    GPUResourceManager.GetInstance().Dynamic3DParticle,
-                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                    GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
-                    GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer);
+                GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
+                GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUGlobalParameterManager.GetInstance().HashGridMin,
+                GPUGlobalParameterManager.GetInstance().HashCellLength);
             Profiler.EndSample();
 
             if (UseVolumeMapBoundary)

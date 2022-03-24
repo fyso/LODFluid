@@ -28,7 +28,7 @@ namespace LODFluid
         public int DivergenceIterationCount = 3;
         public int PressureIterationCount = 3;
 
-        CompactNSearchInvoker CompactNSearch;
+        GPURadixSortHash CompactNSearch;
 
         [Header("Shallow Water")]
         public Material[] Materials;
@@ -77,7 +77,7 @@ namespace LODFluid
                 material.SetTexture(StateTextureKey, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture);
             }
 
-            CompactNSearch = new CompactNSearchInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+            CompactNSearch = new GPURadixSortHash(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
 
             VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,

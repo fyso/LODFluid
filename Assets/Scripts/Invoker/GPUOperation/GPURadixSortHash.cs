@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace LODFluid
 {
-    public class CompactNSearchInvoker
+    public class GPURadixSortHash
     {
         private ComputeShader CompactNSearchCS;
         private int computeMortonCodeKernel;
@@ -20,7 +20,7 @@ namespace LODFluid
         private GPURadixSort GPURadixSorter;
         private GPUBufferClear GPUBufferClearer;
 
-        ~CompactNSearchInvoker()
+        ~GPURadixSortHash()
         {
             ParticleIndexCache.Release();
             SortedParticlePosCache.Release();
@@ -28,7 +28,7 @@ namespace LODFluid
             SortedParticleFilterCache.Release();
         }
 
-        public CompactNSearchInvoker(uint vMaxParticleSize)
+        public GPURadixSortHash(uint vMaxParticleSize)
         {
             CompactNSearchCS = Resources.Load<ComputeShader>("CompactNSearch");
             computeMortonCodeKernel = CompactNSearchCS.FindKernel("computeMortonCode");

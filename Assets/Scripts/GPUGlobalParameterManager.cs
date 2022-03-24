@@ -17,7 +17,7 @@ namespace LODFluid
         public Vector2 ShallowWaterMax { get { return ShallowWaterMin + (Vector2)ShallowWaterReolution * ShallowWaterCellLength; } }
 
         public uint SPHThreadSize = 512;
-        public uint Max3DParticleCount = 300000;
+        public uint Max3DParticleCount = 500000;
         public float Dynamic3DParticleRadius = 0.25f;
         public float Viscosity = 0.01f;
         public float SurfaceTension = 0.05f;

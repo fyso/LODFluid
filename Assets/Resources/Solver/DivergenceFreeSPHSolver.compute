@@ -69,7 +69,7 @@ for (int x = -1; x <= 1; x++)\
             uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];\
             if (CellParticleCount == 0)\
                 continue;\
-            uint CellParticleStart = HashGridCellParticleOffset_R[CellLinerIndex];\
+            uint CellParticleStart = CellLinerIndex == 0 ? 0 : HashGridCellParticleOffset_R[CellLinerIndex - 1];\
             uint CellParticleEnd = CellParticleStart + CellParticleCount;\
             for (uint c = CellParticleStart;c < CellParticleEnd; c++)\
             {\
