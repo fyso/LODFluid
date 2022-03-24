@@ -1,0 +1,128 @@
+﻿#pragma kernel BilateralFilterKernel_Horizon
+#pragma kernel BilateralFilterKernel_Vertical
+#include "../Library/Common.hlsl"
+
+#define N 256
+#define MAXFILTERRADIUS 10
+#define CacheSize (N + 2 * MAXFILTERRADIUS)
+
+groupshared float4 GroupSharedGBuffer[CacheSize];
+
+Texture2D<float4>   _ParticleGBuffer;
+RWTexture2D<float4> _FilteredGBuffer;
+
+int _FilterRadius;
+float _RangeSigma;
+float _ValueSigma;
+
+float CalculateGaussianDistributionWeight1(float delta, float sigma)
+{
+    if (sigma == 0)
+        return 1;
+    float ratio = delta / sigma;
+    return exp(-0.5 * ratio * ratio);
+}
+
+[numthreads(N, 1, 1)]
+void BilateralFilterKernel_Horizon(uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID, uint GIndex : SV_GroupIndex)
+{  
+    float2 txSize;
+    _ParticleGBuffer.GetDimensions(txSize.x, txSize.y);
+    
+    if (GTid.x < _FilterRadius)
+    {
+        int x = max(DTid.x - _FilterRadius, 0);
+        GroupSharedGBuffer[GTid.x] = _ParticleGBuffer[int2(x, DTid.y)];
+    }
+    
+    if (GTid.x >= N - _FilterRadius)
+    {
+        int x = min(DTid.x + _FilterRadius, txSize.x - 1);
+        GroupSharedGBuffer[GTid.x + 2 * _FilterRadius] = _ParticleGBuffer[int2(x, DTid.y)];
+    }
+
+    GroupSharedGBuffer[GTid.x + _FilterRadius] = _ParticleGBuffer[min(DTid.xy, txSize - 1)];
+    GroupMemoryBarrierWithGroupSync();
+    
+    float wsum = 0.0f;
+    float4 sum = float4(0, 0, 0, 0);
+    float4 preBlurValue = GroupSharedGBuffer[GTid.x + _FilterRadius];
+    //TODO:对于空白区域，如何提前结束
+#if UNITY_REVERSED_Z
+     if (preBlurValue.w <= 0.0) _FilteredGBuffer[DTid.xy] = float4(0,0,0,0);
+#else
+    if (preBlurValue.w >= 1.0)
+        _FilteredGBuffer[DTid.xy] = float4(0, 0, 0, 1);
+#endif
+    
+    for (int i = -_FilterRadius; i <= _FilterRadius; ++i)
+    {
+        int k = GTid.x + _FilterRadius + i;
+        float4 sampleValue = GroupSharedGBuffer[k];
+        if (sampleValue.w > 0.0)
+        {
+            float rangeWeight = CalculateGaussianDistributionWeight1(i, _RangeSigma);
+            float valueWeight = CalculateGaussianDistributionWeight1(sampleValue.w - preBlurValue.w, _ValueSigma);
+            float weight = rangeWeight * valueWeight;
+            sum += sampleValue * weight;
+            wsum += weight;         
+        }
+    }
+    
+    if (wsum > 0.0)
+        _FilteredGBuffer[DTid.xy] = sum / wsum;
+    else
+        _FilteredGBuffer[DTid.xy] = preBlurValue;
+}
+
+[numthreads(1, N, 1)]
+void BilateralFilterKernel_Vertical(uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID, uint GIndex : SV_GroupIndex)
+{
+    float2 txSize;
+    _ParticleGBuffer.GetDimensions(txSize.x, txSize.y);
+    
+    if (GTid.y < _FilterRadius)
+    {
+        int y = max(DTid.y - _FilterRadius, 0);
+        GroupSharedGBuffer[GTid.y] = _ParticleGBuffer[int2(DTid.x, y)];
+    }
+    
+    if (GTid.y >= N - _FilterRadius)
+    {
+        int y = min(DTid.y + _FilterRadius, txSize.y - 1);
+        GroupSharedGBuffer[GTid.y + 2 * _FilterRadius] = _ParticleGBuffer[int2(DTid.x, y)];
+    }
+
+    GroupSharedGBuffer[GTid.y + _FilterRadius] = _ParticleGBuffer[min(DTid.xy, txSize - 1)];
+    GroupMemoryBarrierWithGroupSync();
+   
+    float wsum = 0.0f;
+    float4 sum = float4(0, 0, 0, 0);
+    float4 preBlurValue = GroupSharedGBuffer[GTid.y + _FilterRadius];
+    //TODO:对于空白区域，如何提前结束
+#if UNITY_REVERSED_Z
+     if (preBlurValue.w <= 0.0) _FilteredGBuffer[DTid.xy] = float4(0,0,0,0);
+#else
+    if (preBlurValue.w >= 1.0)
+        _FilteredGBuffer[DTid.xy] = float4(0, 0, 0, 1);
+#endif
+    
+    for (int i = -_FilterRadius; i <= _FilterRadius; ++i)
+    {
+        int k = GTid.y + _FilterRadius + i;
+        float4 sampleValue = GroupSharedGBuffer[k];
+        if (sampleValue.w > 0.0)
+        {
+            float rangeWeight = CalculateGaussianDistributionWeight1(i, _RangeSigma);
+            float valueWeight = CalculateGaussianDistributionWeight1(sampleValue.w - preBlurValue.w, _ValueSigma);
+            float weight = rangeWeight * valueWeight;
+            sum += sampleValue * weight;
+            wsum += weight;
+        }
+    }
+    
+    if (wsum > 0.0)
+        _FilteredGBuffer[DTid.xy] = sum / wsum;
+    else
+        _FilteredGBuffer[DTid.xy] = preBlurValue;
+}

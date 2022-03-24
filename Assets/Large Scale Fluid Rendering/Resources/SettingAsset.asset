@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89dda87cbae4e984a9ee0ea3d6631456, type: 3}
+  m_Name: SettingAsset
+  m_EditorClassIdentifier: 
+  m_UseDynamicBatching: 1
+  m_UseGPUInstancing: 1
+  m_UseSRPBatcher: 1
+  m_InputSetting:
+    m_ParticleCount: 252303
+    m_DiffuseParticleCount: 101025
+    m_ParticlesRadius: 0.05
+    m_DrawEllipsoids: 1
+  m_DrawThickness: 1
+  m_DrawFoam: 1
+  m_SurfaceSetting:
+    m_SmoothSetting:
+      m_BlurRadiusWorld: 0.0515
+  m_ShadowSetting:
+    m_MaxShadowDistance: 20
+    m_ShadowType: 2
+    m_TextureSize: 1024
+  m_ShowDiffuse: 1
+  m_ShowSpecular: 1
+  m_ShowReflecion: 1
+  m_ShowRefraction: 1
+  m_Output: 1

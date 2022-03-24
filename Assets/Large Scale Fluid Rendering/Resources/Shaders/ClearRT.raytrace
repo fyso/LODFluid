@@ -1,0 +1,9 @@
+RWTexture2D<float4> _Output;
+
+[shader("raygeneration")]
+void ClearRT()
+{
+	const uint2 dispatchIdx = DispatchRaysIndex().xy;
+	_Output[dispatchIdx] = 0.0f;
+}
+

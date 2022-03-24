@@ -1,0 +1,136 @@
+#define USE_THICKENSS_MAP
+#define DRAW_FOAM
+
+#include "Library/Common.hlsl"
+#include "Library/RayTracing.hlsl"
+#include "Library/Shadows.hlsl"
+
+RWTexture2D<float4> _Output;
+Texture2D<float4> _FluidGBuffer;
+Texture2D<float> _FluidThickness;
+Texture2D<float4> _Foam;
+
+Texture2D<float> _SceneDepth;
+TextureCube<float4> _SkyboxTexture;
+SamplerState sampler_SkyboxTexture;
+
+float4 _Diffuse = float4(0.0f, 0.1f, 0.7f, 1.0f);
+float4 _DiffuseGrazing = float4(0.2f, 0.4f, 0.6f, 1.0f);
+
+float _WaterIOF;
+int _ShowDiffuse;
+int _ShowSpecular;
+int _ShowReflecion;
+int _ShowRefraction;
+float _DiffuseStrength;
+float _SpecularStrength;
+float _ReflecionStrength;
+float _RefractionStrength;
+int _UseThicknessMap;
+int _BlendFoam;
+float4 _FoamColor;
+#pragma max_recursion_depth 1
+
+float4 SampleCubeMap(float3 dir)
+{
+	return SAMPLE_TEXTURECUBE_LOD(_SkyboxTexture, sampler_SkyboxTexture, dir, 0);
+}
+
+[shader("raygeneration")]
+void FluidRayGen()
+{
+	const uint2 dispatchIdx = DispatchRaysIndex().xy;
+	int3 uv = int3(dispatchIdx.x, dispatchIdx.y, 0);
+
+    float4 waterGBuffer = _FluidGBuffer.Load(uv);
+    float waterDepth = waterGBuffer.w;
+	float sceneDepth = _SceneDepth.Load(uv);
+	float3 rayDirection = GenerateCameraRay();
+
+	if(waterDepth == 0.0f  && sceneDepth == 0.0f)
+	{
+		_Output[dispatchIdx] = float4(pow(SampleCubeMap(rayDirection).xyz, 1 / 2.2), 1.0f);
+		return;
+	}
+	if(sceneDepth > waterDepth)
+	{
+		return;
+	}
+
+	float3 waterPositionWS =  GetPositionWSFromDepth(uv.xy / _ScreenParams.xy, waterDepth);
+    float3 waterNormalWS = waterGBuffer.xyz;
+	if(dot(waterNormalWS, rayDirection) > 0.0f) waterNormalWS = -waterNormalWS;  //±³²¿Èý½ÇÃæ
+	float3 viewDir = normalize(_WorldSpaceCameraPos - waterPositionWS);
+    float fresnel = getFresnel(dot(waterNormalWS, viewDir), _WaterIOF);
+
+	RayDesc rayDes;
+	rayDes.Origin = waterPositionWS;
+	rayDes.TMin = 0.0001f;
+	rayDes.TMax = 10000.0f;
+
+	RayIntersection rayIntersection;
+
+    float3 diffuse = float3(0, 0, 0);
+    if (_ShowDiffuse)
+    {
+        float ln = dot(_WorldSpaceLightDir0.xyz, waterNormalWS);
+        diffuse = _Diffuse.xyz * lerp(float3(0.29, 0.379, 0.59), float3(1.0, 1.0, 1.0), (ln * 0.5 + 0.5)) * _Diffuse.w;
+
+		//float v = abs(viewDir.y);//Crest Impl
+        float v = max(dot(viewDir, waterNormalWS), 0.0);
+        diffuse += lerp(diffuse, _DiffuseGrazing.xyz * _DiffuseGrazing.w, 1. - pow(v, 1.0));
+        diffuse *= _DiffuseStrength;
+    }
+
+	float3 transmission;
+	if(_UseThicknessMap)
+	{
+		float waterThickness = max(_FluidThickness.Load(uv), 0.3);
+		transmission = exp(-(float3(1.0, 1.0, 1.0) - _Diffuse.xyz) * waterThickness) + 0.3;
+	}
+	else
+		transmission = (1.0 - (1.0 - _Diffuse.xyz) * 0.64) * _Diffuse.w;
+
+    float3 specular = float3(0, 0, 0);
+    if (_ShowSpecular)
+    {
+		float3 halfDir = normalize(_WorldSpaceLightPos0.xyz + viewDir);
+		float NdotH = max(0, dot(halfDir, waterNormalWS));
+        specular = 1.2 * pow(max(NdotH, 0.0), 400.0);
+        specular *= _SpecularStrength;
+    }
+
+    float3 reflecion = float3(0, 0, 0);
+    if (_ShowReflecion)
+    {
+		rayDes.Direction = normalize(reflect(rayDirection, waterNormalWS));
+		TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDes, rayIntersection);
+        reflecion = rayIntersection.color;
+        reflecion *= _ReflecionStrength;
+    }
+
+    float3 refraction = float3(0, 0, 0);
+    if (_ShowRefraction)
+    {
+		rayDes.Direction = normalize(refract(rayDirection, waterNormalWS, 1.0 / _WaterIOF));
+		TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDes, rayIntersection);
+        refraction = rayIntersection.color.xyz * transmission;
+        refraction *= _RefractionStrength;
+
+        if (_BlendFoam) refraction += _Foam.Load(uv).xyz * _FoamColor.xyz * _FoamColor.w;
+    }
+
+	float4 posLCS = getPosLCSWithOffset(waterPositionWS, waterNormalWS);
+	posLCS.xyz /= posLCS.w;
+    float4 color = float4(diffuse * getShadow(posLCS) + (lerp(refraction, reflecion, fresnel) + specular) * (1 - _Diffuse.w), 1.0);
+
+    _Output[dispatchIdx] = float4(pow(color.xyz, 1 / 2.2), 1.0f);
+}
+
+[shader("miss")]
+void MissShader(inout RayIntersection rayIntersection : SV_RayPayload)
+{
+	float3 dir = WorldRayDirection();
+	rayIntersection.color = SampleCubeMap(dir);
+}
+
