@@ -8,8 +8,10 @@
 
 StructuredBuffer<uint> TargetParticleIndirectArgment_R;
 RWStructuredBuffer<float3> TargetParticlePosition_RW;
-RWStructuredBuffer<float4> ClosestPointAndVolume_RW;
 RWStructuredBuffer<float3> BoundaryVelocity_RW;
+RWStructuredBuffer<float3> ClosestPoint_RW;
+RWStructuredBuffer<float> Volume_RW;
+RWStructuredBuffer<float> Distance_RW;
 
 SamplerState Sampler_Trilinear_Clamp;
 
@@ -904,18 +906,24 @@ void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : S
     NormalAndDist.xyz = mul(Rotation, float4(normalize(NormalAndDist.xyz), 1.0f)).xyz;
     float3 DisplacementVector = NormalAndDist.w * normalize(NormalAndDist.xyz);
     float CurrDist = length(DisplacementVector);
-    if (VolumeData > 0 && NormalAndDist.w > 0.0f && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
+    if (NormalAndDist.w >= 0.0f)
     {
-        float3 CurrClosestPoint = CenterPos - normalize(DisplacementVector) * max(CurrDist + 0.5f * ParticleRadius, 2.0f * ParticleRadius);
-        
-        float3 OldClosestPoint = ClosestPointAndVolume_RW[i].xyz;
-        float OldDist = length(CenterPos - OldClosestPoint);
-        
-        if (CurrDist < OldDist)
+        if (VolumeData > 0 && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
         {
-            ClosestPointAndVolume_RW[i] = float4(CurrClosestPoint, VolumeData);
-            BoundaryVelocity_RW[i] = BoundaryVelocity;
+            float OldDist = Distance_RW[i];
+            if (CurrDist < OldDist)
+            {
+                ClosestPoint_RW[i] = CenterPos - normalize(DisplacementVector) * max(CurrDist + 0.5f * ParticleRadius, 2.0f * ParticleRadius);
+                Volume_RW[i] = VolumeData;
+                Distance_RW[i] = NormalAndDist.w;
+                BoundaryVelocity_RW[i] = BoundaryVelocity;
+            }
         }
+    }
+    else
+    {
+        Volume_RW[i] = 0.0f;
+        Distance_RW[i] = NormalAndDist.w;
     }
 }
 
@@ -926,5 +934,7 @@ void clearClosestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : 
     if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
         return;
     
-    ClosestPointAndVolume_RW[i] = float4(FLT_MAX, FLT_MAX, FLT_MAX, 0.0f);
+    ClosestPoint_RW[i] = float3(FLT_MAX, FLT_MAX, FLT_MAX);
+    Distance_RW[i] = FLT_MAX;
+    Volume_RW[i] = 0.0f;
 }

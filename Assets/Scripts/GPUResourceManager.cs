@@ -105,7 +105,9 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleDensityChangeBuffer;
         public ComputeBuffer Dynamic3DParticleDensityAdvBuffer;
         public ComputeBuffer Dynamic3DParticleNormalBuffer;
-        public ComputeBuffer Dynamic3DParticleClosestPointAndVolumeBuffer;
+        public ComputeBuffer Dynamic3DParticleClosestPointBuffer;
+        public ComputeBuffer Dynamic3DParticleDistanceBuffer;
+        public ComputeBuffer Dynamic3DParticleVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
 
         public ShallowWaterBuffer ShallowWaterResources;
@@ -120,7 +122,9 @@ namespace LODFluid
             Dynamic3DParticleDensityChangeBuffer.Release();
             Dynamic3DParticleDensityAdvBuffer.Release();
             Dynamic3DParticleNormalBuffer.Release();
-            Dynamic3DParticleClosestPointAndVolumeBuffer.Release();
+            Dynamic3DParticleClosestPointBuffer.Release();
+            Dynamic3DParticleDistanceBuffer.Release();
+            Dynamic3DParticleVolumeBuffer.Release();
             Dynamic3DParticleBoundaryVelocityBuffer.Release();
         }
 
@@ -155,9 +159,17 @@ namespace LODFluid
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
                 sizeof(float) * 3);
 
-            Dynamic3DParticleClosestPointAndVolumeBuffer = new ComputeBuffer(
+            Dynamic3DParticleClosestPointBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
-                sizeof(float) * 4);
+                sizeof(float) * 3);
+
+            Dynamic3DParticleDistanceBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float));
+
+            Dynamic3DParticleVolumeBuffer = new ComputeBuffer(
+                (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                sizeof(float));
 
             Dynamic3DParticleBoundaryVelocityBuffer = new ComputeBuffer(
                 (int)GPUGlobalParameterManager.GetInstance().Max3DParticleCount,

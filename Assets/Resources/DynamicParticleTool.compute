@@ -17,6 +17,8 @@ RWStructuredBuffer<float3> ParticleVelocity_RW;
 StructuredBuffer<uint> ParticleFilter_R;
 RWStructuredBuffer<uint> ParticleFilter_RW;
 
+StructuredBuffer<float> ParticleBoundaryDiatance_R;
+
 float3 WaterGeneratePos;
 uint WaterBlockResX;
 uint WaterBlockResY;
@@ -65,9 +67,10 @@ void deleteParticleOutofRange(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV
         return;
     
     float3 Postion = ParticlePosition_R[i];
+    float BoundaryDistance = ParticleBoundaryDiatance_R[i];
 	
     float3 HashGridMax = HashGridMin + HashGridCellLength * HashGridResolution;
-    if (any(Postion < HashGridMin) || any(Postion >= HashGridMax))
+    if (any(Postion < HashGridMin) || any(Postion >= HashGridMax) || BoundaryDistance < 0.0f)
     {
         ParticleFilter_RW[i] = 0;
     }

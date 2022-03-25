@@ -71,6 +71,7 @@ namespace LODFluid
         public void DeleteParticleOutofRange(
              ParticleBuffer voTarget,
              ComputeBuffer vParticleIndirectArgumentBuffer,
+             ComputeBuffer vParticleBoundaryDistanceBuffer,
              Vector3 vHashGridMin,
              float vHashGridCellLength,
              Vector3Int vHashGridResolution)
@@ -80,6 +81,7 @@ namespace LODFluid
             DynamicParticleToolCS.SetInts("HashGridResolution", vHashGridResolution.x, vHashGridResolution.y, vHashGridResolution.z);
             DynamicParticleToolCS.SetBuffer(DeleteParticleOutofRangeKernel, "ParticleIndrectArgment_R", vParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(DeleteParticleOutofRangeKernel, "ParticlePosition_R", voTarget.ParticlePositionBuffer);
+            DynamicParticleToolCS.SetBuffer(DeleteParticleOutofRangeKernel, "ParticleBoundaryDiatance_R", vParticleBoundaryDistanceBuffer);
             DynamicParticleToolCS.SetBuffer(DeleteParticleOutofRangeKernel, "ParticleFilter_RW", voTarget.ParticleFilterBuffer);
             DynamicParticleToolCS.DispatchIndirect(DeleteParticleOutofRangeKernel, vParticleIndirectArgumentBuffer);
         }
