@@ -42,17 +42,21 @@ namespace LODFluid
 
         // R - X velocity ; G - Y-velocity
         public RenderTexture VelocityTexture;
+
+        public RenderTexture ExternHeightTexture;
         
         public ShallowWaterBuffer(Vector2Int vResolution)
         {
             int Width = vResolution.x;
             int Height = vResolution.y;
+
             StateTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
             {
                 enableRandomWrite = true,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
+
             WaterOutFluxTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
             {
                 enableRandomWrite = true,
@@ -66,6 +70,13 @@ namespace LODFluid
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
+
+            ExternHeightTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.RFloat)
+            {
+                enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
         }
 
         ~ShallowWaterBuffer()
@@ -73,6 +84,7 @@ namespace LODFluid
             StateTexture.Release();
             WaterOutFluxTexture.Release();
             VelocityTexture.Release();
+            ExternHeightTexture.Release();
         }
     }
 

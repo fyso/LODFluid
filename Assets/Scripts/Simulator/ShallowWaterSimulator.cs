@@ -28,6 +28,7 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture,
                 GPUResourceManager.GetInstance().ShallowWaterResources.VelocityTexture,
                 GPUResourceManager.GetInstance().ShallowWaterResources.WaterOutFluxTexture,
+                GPUResourceManager.GetInstance().ShallowWaterResources.ExternHeightTexture,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterReolution,
                 GPUGlobalParameterManager.GetInstance().TimeStep,
                 GPUGlobalParameterManager.GetInstance().Gravity,

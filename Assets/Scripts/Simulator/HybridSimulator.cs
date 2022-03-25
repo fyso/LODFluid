@@ -28,7 +28,9 @@ namespace LODFluid
         public int DivergenceIterationCount = 3;
         public int PressureIterationCount = 3;
 
-        GPURadixSortHash CompactNSearch;
+        private DynamicParticleToolInvoker DynamicParticleTool;
+        private GPUCountingSortHash CompactNSearch;
+        private DivergenceFreeSPHSolverInvoker DivergenceFreeSPHSolver;
 
         [Header("Shallow Water")]
         public Material[] Materials;
@@ -77,7 +79,11 @@ namespace LODFluid
                 material.SetTexture(StateTextureKey, GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture);
             }
 
-            CompactNSearch = new GPURadixSortHash(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+            CompactNSearch = new GPUCountingSortHash(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
+            DynamicParticleTool = new DynamicParticleToolInvoker(
+                GPUGlobalParameterManager.GetInstance().Max3DParticleCount,
+                GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
+            DivergenceFreeSPHSolver = new DivergenceFreeSPHSolverInvoker(GPUGlobalParameterManager.GetInstance().Max3DParticleCount);
 
             VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
                 BoundaryObjects,
@@ -96,15 +102,22 @@ namespace LODFluid
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
             GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
 
-            //if (Input.GetKeyDown(KeyCode.Space))
-            //{
-            //    DynamicParticleToolInvoker.GetInstance().AddParticleBlock(
-            //        GPUResourceManager.GetInstance().Dynamic3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        WaterGeneratePosition,
-            //        WaterGenerateResolution,
-            //        WaterGenerateInitVelocity);
-            //}
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                DynamicParticleTool.AddParticleBlock(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    WaterGeneratePosition,
+                    WaterGenerateResolution,
+                    WaterGenerateInitVelocity);
+            }
+
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                uint[] ArgumentCPU = new uint[7];
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ArgumentCPU);
+                Debug.Log(ArgumentCPU[4]);
+            }
         }
 
         private void FixedUpdate()
@@ -114,6 +127,7 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().ShallowWaterResources.StateTexture,
                 GPUResourceManager.GetInstance().ShallowWaterResources.VelocityTexture,
                 GPUResourceManager.GetInstance().ShallowWaterResources.WaterOutFluxTexture,
+                GPUResourceManager.GetInstance().ShallowWaterResources.ExternHeightTexture,
                 GPUGlobalParameterManager.GetInstance().ShallowWaterReolution,
                 GPUGlobalParameterManager.GetInstance().TimeStep,
                 GPUGlobalParameterManager.GetInstance().Gravity,
@@ -122,98 +136,93 @@ namespace LODFluid
                 GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
 
             //SPH Step
-            //Profiler.BeginSample("Delete out of range particle");
-            //DynamicParticleToolInvoker.GetInstance().DeleteParticleOutofRange(
-            //        GPUResourceManager.GetInstance().Dynamic3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        GPUGlobalParameterManager.GetInstance().HashGridMin,
-            //        GPUGlobalParameterManager.GetInstance().HashCellLength,
-            //        GPUGlobalParameterManager.GetInstance().HashResolution);
-            //Profiler.EndSample();
+            Profiler.BeginSample("Delete out of range particle");
+            DynamicParticleTool.DeleteParticleOutofRange(
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUGlobalParameterManager.GetInstance().HashGridMin,
+                    GPUGlobalParameterManager.GetInstance().HashCellLength,
+                    GPUGlobalParameterManager.GetInstance().HashResolution);
+            Profiler.EndSample();
 
-            //Profiler.BeginSample("Narrow");
-            //DynamicParticleToolInvoker.GetInstance().NarrowParticleData(
-            //        GPUResourceManager.GetInstance().Dynamic3DParticle,
-            //        GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleScatterOffsetBuffer);
-            //Profiler.EndSample();
+            Profiler.BeginSample("Narrow");
+            DynamicParticleTool.NarrowParticleData(
+                    ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer);
+            Profiler.EndSample();
 
-            //Profiler.BeginSample("Counting sort");
-            //CompactNSearch.CountingSort(
-            //        GPUResourceManager.GetInstance().DynamicNarrow3DParticle,
-            //        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
-            //        GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleCellIndexBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleInnerSortBuffer,
-            //        GPUGlobalParameterManager.GetInstance().HashGridMin,
-            //        GPUGlobalParameterManager.GetInstance().HashCellLength,
-            //        GPUGlobalParameterManager.GetInstance().HashResolution);
-            //Profiler.EndSample();
+            Profiler.BeginSample("Sort by MortonCode");
+            CompactNSearch.CountingHashSort(
+                ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
+                GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUGlobalParameterManager.GetInstance().HashGridMin,
+                GPUGlobalParameterManager.GetInstance().HashCellLength);
+            Profiler.EndSample();
 
-            //Profiler.BeginSample("Query closest point and volume");
-            //VolumeMapBoundarySolverInvoker.GetInstance().QueryClosestPointAndVolume(
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-            //        BoundaryObjects,
-            //        GPUResourceManager.GetInstance().Volume,
-            //        GPUResourceManager.GetInstance().SignedDistance,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
-            //        GPUGlobalParameterManager.GetInstance().SearchRadius,
-            //        GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
-            //Profiler.EndSample();
+            Profiler.BeginSample("Query closest point and volume");
+            VolumeMapBoundarySolverInvoker.GetInstance().QueryClosestPointAndVolume(
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    BoundaryObjects,
+                    GPUResourceManager.GetInstance().Volume,
+                    GPUResourceManager.GetInstance().SignedDistance,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
+                    GPUGlobalParameterManager.GetInstance().SearchRadius,
+                    GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius);
+            Profiler.EndSample();
 
-            //Profiler.BeginSample("Apply boundary influence");
-            //for (int i = 0; i < 4; i++)
-            //{
-            //    EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
-            //            BoundaryObjects,
-            //            GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-            //            GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //            GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
-            //        );
-            //}
-            //Profiler.EndSample();
+            Profiler.BeginSample("Apply boundary influence");
+            EnforceBoundarySolverInvoker.GetInstance().ApplyBoundaryInfluence(
+                    BoundaryObjects,
+                    GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius
+                );
+            Profiler.EndSample();
 
-            //Profiler.BeginSample("Slove divergence-free SPH");
-            //DivergenceFreeSPHSolverInvoker.GetInstance().Slove(
-            //        GPUResourceManager.GetInstance().DynamicSorted3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticle,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //        GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
-            //        GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleDensityBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleAlphaBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleDensityChangeBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleDensityAdvBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleNormalBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
-            //        GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
-            //        GPUGlobalParameterManager.GetInstance().HashGridMin,
-            //        GPUGlobalParameterManager.GetInstance().HashCellLength,
-            //        GPUGlobalParameterManager.GetInstance().HashResolution,
-            //        GPUGlobalParameterManager.GetInstance().SearchRadius,
-            //        GPUGlobalParameterManager.GetInstance().ParticleVolume,
-            //        GPUGlobalParameterManager.GetInstance().TimeStep,
-            //        GPUGlobalParameterManager.GetInstance().Viscosity,
-            //        GPUGlobalParameterManager.GetInstance().SurfaceTension,
-            //        GPUGlobalParameterManager.GetInstance().Gravity,
-            //        DivergenceIterationCount, PressureIterationCount
-            //    );
-            //Profiler.EndSample();
+            Profiler.BeginSample("Slove divergence-free SPH");
+            DivergenceFreeSPHSolver.Slove(
+                    ref GPUResourceManager.GetInstance().Dynamic3DParticle,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
+                    GPUResourceManager.GetInstance().HashGridCellParticleOffsetBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleDensityBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleAlphaBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleDensityChangeBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleDensityAdvBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleNormalBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleClosestPointAndVolumeBuffer,
+                    GPUResourceManager.GetInstance().Dynamic3DParticleBoundaryVelocityBuffer,
+                    GPUGlobalParameterManager.GetInstance().HashGridMin,
+                    GPUGlobalParameterManager.GetInstance().HashCellLength,
+                    GPUGlobalParameterManager.GetInstance().HashResolution,
+                    GPUGlobalParameterManager.GetInstance().SearchRadius,
+                    GPUGlobalParameterManager.GetInstance().ParticleVolume,
+                    GPUGlobalParameterManager.GetInstance().TimeStep,
+                    GPUGlobalParameterManager.GetInstance().Viscosity,
+                    GPUGlobalParameterManager.GetInstance().SurfaceTension,
+                    GPUGlobalParameterManager.GetInstance().Gravity,
+                    DivergenceIterationCount, PressureIterationCount
+                );
+            Profiler.EndSample();
 
-            //HybridInvoker.GetInstance().CoupleParticleAndGrid(
-            //    GPUResourceManager.GetInstance().Dynamic3DParticle,
-            //    GPUResourceManager.GetInstance().ShallowWaterResources,
-            //    GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-            //    GPUGlobalParameterManager.GetInstance().TimeStep,
-            //    GPUGlobalParameterManager.GetInstance().BandWidth,
-            //    GPUGlobalParameterManager.GetInstance().ShallowWaterMin,
-            //    GPUGlobalParameterManager.GetInstance().ShallowWaterMax,
-            //    GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
+            //Hybrid step
+            HybridInvoker.GetInstance().CoupleParticleAndGrid(
+                GPUResourceManager.GetInstance().Dynamic3DParticle,
+                GPUResourceManager.GetInstance().ShallowWaterResources,
+                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
+                GPUResourceManager.GetInstance().HashGridCellParticleCountBuffer,
+                GPUGlobalParameterManager.GetInstance().HashGridMin,
+                GPUGlobalParameterManager.GetInstance().HashCellLength,
+                GPUGlobalParameterManager.GetInstance().HashResolution,
+                GPUGlobalParameterManager.GetInstance().TimeStep,
+                GPUGlobalParameterManager.GetInstance().BandWidth,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterMin,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterMax,
+                GPUGlobalParameterManager.GetInstance().ShallowWaterCellLength);
         }
     }
 }

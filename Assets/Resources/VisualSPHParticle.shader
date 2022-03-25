@@ -81,7 +81,7 @@ Shader "Unlit/SPHParticle"
                     }
                 result.positionCS = TransformWViewToHClip(sphereCenter + float3(_ParticleRadius * result.uv, 0.0f));
                 float3 Velocity = _particleVelocityBuffer[instanceID];
-                float ClampVel = clamp(length(Velocity), 0.0f, 10.0f) / 10.0f;
+                float ClampVel = clamp(length(Velocity), 0.0f, 20.0f) / 20.0f;
                 result.col = ClampVel * float4(1.0f, 1.0f, 1.0f, 1.0f) + _ParticleColor;
                 return result;
             }

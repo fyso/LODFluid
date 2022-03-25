@@ -9,6 +9,7 @@ namespace LODFluid
         public float TimeStep = 0.01666667f;
         public float Gravity = 9.8f;
 
+        public uint ShallowThreadSize = 32;
         public Vector2Int ShallowWaterReolution = new Vector2Int(1024, 1024);
         public Vector2 ShallowWaterMin = new Vector2(0, 0);
         public float ShallowWaterPipeLength = 1;

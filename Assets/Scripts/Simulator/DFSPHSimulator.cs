@@ -6,6 +6,8 @@ namespace LODFluid
 {
     public class DFSPHSimulator : MonoBehaviour
     {
+        public Vector3 SimulationRangeMin = new Vector3(0, 0, 0);
+        public Vector3Int SimulationRangeRes = new Vector3Int(64, 64, 64);
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
         public Vector3 WaterGenerateInitVelocity = new Vector3(0, 0, 0);
@@ -36,8 +38,8 @@ namespace LODFluid
 
         private void OnDrawGizmos()
         {
-            Vector3 SimulationMin = GPUGlobalParameterManager.GetInstance().SimualtionRangeMin;
-            Vector3 SimulationMax = GPUGlobalParameterManager.GetInstance().SimualtionRangeMin + (Vector3)GPUGlobalParameterManager.GetInstance().SimualtionRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
+            Vector3 SimulationMin = SimulationRangeMin;
+            Vector3 SimulationMax = SimulationRangeMin + (Vector3)SimulationRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
             Gizmos.color = new Color(1.0f, 0.0f, 0.0f);
             Gizmos.DrawWireCube((SimulationMin + SimulationMax) * 0.5f, SimulationMax - SimulationMin);
 
@@ -61,23 +63,22 @@ namespace LODFluid
                 GPUResourceManager.GetInstance().SignedDistance,
                 GPUGlobalParameterManager.GetInstance().SearchRadius,
                 GPUGlobalParameterManager.GetInstance().CubicZero);
-
-            DynamicParticleTool.AddParticleBlock(
-                GPUResourceManager.GetInstance().Dynamic3DParticle,
-                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer,
-                WaterGeneratePosition,
-                WaterGenerateResolution,
-                WaterGenerateInitVelocity);
         }
 
+        private bool Emit = false;
         void Update()
         {
+            GPUGlobalParameterManager.GetInstance().SimualtionRangeMin = SimulationRangeMin;
+            GPUGlobalParameterManager.GetInstance().SimualtionRangeRes = SimulationRangeRes;
             GPUGlobalParameterManager.GetInstance().TimeStep = TimeStep;
             GPUGlobalParameterManager.GetInstance().Viscosity = Viscosity;
             GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
             GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
 
             if (Input.GetKeyDown(KeyCode.Space))
+                Emit = !Emit;
+
+            if (Emit && Time.frameCount % 10 == 0)
             {
                 DynamicParticleTool.AddParticleBlock(
                     GPUResourceManager.GetInstance().Dynamic3DParticle,

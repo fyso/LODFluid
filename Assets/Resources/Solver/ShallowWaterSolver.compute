@@ -40,6 +40,7 @@ RWTexture2D<float2> VelocityMap;
 // Water Flux field (R - left, G - right, B - top, A - bottom)
 RWTexture2D<float4> FluxMap;
 
+RWTexture2D<float> ExternHeight;
 
 // Fluid simulation properties
 uint _Width;
@@ -55,11 +56,11 @@ float _PipeLength;
 void FluxComputation(uint3 id : SV_DispatchThreadID)
 {
 	// Sample the heighmap (state map)
-    float4 state = CURRENT_SAMPLE(HeightMap);
-    float4 stateLeft = LEFT_SAMPLE(HeightMap);
-    float4 stateRight = RIGHT_SAMPLE(HeightMap);
-    float4 stateTop = TOP_SAMPLE(HeightMap);
-    float4 stateBottom = BOTTOM_SAMPLE(HeightMap);
+    float4 state = CURRENT_SAMPLE(HeightMap) + float4(0, CURRENT_SAMPLE(ExternHeight), 0, 0);
+    float4 stateLeft = LEFT_SAMPLE(HeightMap) + float4(0, LEFT_SAMPLE(ExternHeight), 0, 0);
+    float4 stateRight = RIGHT_SAMPLE(HeightMap) + float4(0, RIGHT_SAMPLE(ExternHeight), 0, 0);
+    float4 stateTop = TOP_SAMPLE(HeightMap) + float4(0, TOP_SAMPLE(ExternHeight), 0, 0);
+    float4 stateBottom = BOTTOM_SAMPLE(HeightMap) + float4(0, BOTTOM_SAMPLE(ExternHeight), 0, 0);
 
     float waterHeight = WATER_HEIGHT(state);
 
@@ -100,7 +101,7 @@ void FluxComputation(uint3 id : SV_DispatchThreadID)
 [NUMTHREADS]
 void FluxApply(uint3 id : SV_DispatchThreadID)
 {
-    float4 state = CURRENT_SAMPLE(HeightMap);
+    float4 state = CURRENT_SAMPLE(HeightMap) + float4(0, CURRENT_SAMPLE(ExternHeight), 0, 0);
     float4 outputFlux = CURRENT_SAMPLE(FluxMap);
     float4 inputFlux = float4(
 		RDIR(LEFT_SAMPLE(FluxMap)),

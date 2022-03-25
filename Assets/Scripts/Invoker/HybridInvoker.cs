@@ -7,11 +7,13 @@ namespace LODFluid
     public class HybridInvoker : Singleton<HybridInvoker>
     {
         private ComputeShader HybridSolverCS;
+        private int ComputeParticleThickOfCellKernel;
         private int ParticleToGridKernel;
         private int GridToParticleKernel;
         public HybridInvoker()
         {
             HybridSolverCS = Resources.Load<ComputeShader>("Solver/HybridSolver");
+            ComputeParticleThickOfCellKernel = HybridSolverCS.FindKernel("computeParticleThickOfCell");
             ParticleToGridKernel = HybridSolverCS.FindKernel("particleToGrid");
             GridToParticleKernel = HybridSolverCS.FindKernel("gridToParticle");
         }
@@ -20,6 +22,8 @@ namespace LODFluid
             ParticleBuffer vParticle,
             ShallowWaterBuffer voShallowWater,
             ComputeBuffer vParticleIndirectArgment,
+            ComputeBuffer vHashGridParticleCount,
+            Vector3 vHashGridMin, float HashGridCellLength, Vector3Int vHashGridResolution,
             float vTimeStep, float vBandWidth, Vector2 vShallowWaterMin, Vector2 vShallowWaterMax, float vShallowWaterCellLength)
         {
             HybridSolverCS.SetFloat("TimeStep", vTimeStep);
@@ -27,6 +31,19 @@ namespace LODFluid
             HybridSolverCS.SetFloat("ShallowWaterCellLength", vShallowWaterCellLength);
             HybridSolverCS.SetVector("ShallowWaterMin", vShallowWaterMin);
             HybridSolverCS.SetVector("ShallowWaterMax", vShallowWaterMax);
+
+            HybridSolverCS.SetVector("HashGridMin", vHashGridMin);
+            HybridSolverCS.SetFloat("HashGridCellLength", HashGridCellLength);
+            HybridSolverCS.SetInt("HashGridResolutionX", vHashGridResolution.x);
+            HybridSolverCS.SetInt("HashGridResolutionY", vHashGridResolution.y);
+            HybridSolverCS.SetInt("HashGridResolutionZ", vHashGridResolution.z);
+
+            HybridSolverCS.SetTexture(ComputeParticleThickOfCellKernel, "StateMap_RW", voShallowWater.StateTexture);
+            HybridSolverCS.SetTexture(ComputeParticleThickOfCellKernel, "ParticleHeight_RW", voShallowWater.ExternHeightTexture);
+            HybridSolverCS.SetBuffer(ComputeParticleThickOfCellKernel, "HashGridCellParticleCount_R", vHashGridParticleCount);
+            int GridX = Mathf.CeilToInt((float)GPUGlobalParameterManager.GetInstance().ShallowWaterReolution.x / GPUGlobalParameterManager.GetInstance().ShallowThreadSize);
+            int GridY = Mathf.CeilToInt((float)GPUGlobalParameterManager.GetInstance().ShallowWaterReolution.y / GPUGlobalParameterManager.GetInstance().ShallowThreadSize);
+            HybridSolverCS.Dispatch(ComputeParticleThickOfCellKernel, GridX, GridY, 1);
 
             HybridSolverCS.SetBuffer(ParticleToGridKernel, "ParticleIndirectArgment_R", vParticleIndirectArgment);
             HybridSolverCS.SetBuffer(ParticleToGridKernel, "ParticlePosition_R", vParticle.ParticlePositionBuffer);

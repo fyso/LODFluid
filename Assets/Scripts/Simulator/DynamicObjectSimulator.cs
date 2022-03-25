@@ -30,6 +30,14 @@ public class DynamicObjectSimulator : MonoBehaviour
         {
             Rigidbody.velocity = (new Vector3(0.0f, 0.0f, -1.0f) * ControllerForceFactor);
         }
+        else if (Input.GetKey(KeyCode.U))
+        {
+            Rigidbody.velocity = (new Vector3(0.0f, 1.0f, 0.0f) * ControllerForceFactor);
+        }
+        else if (Input.GetKey(KeyCode.O))
+        {
+            Rigidbody.velocity = (new Vector3(0.0f, -1.0f, 0.0f) * ControllerForceFactor);
+        }
         else
         {
             Rigidbody.velocity = new Vector3(0.0f, 0.0f, 0.0f);
