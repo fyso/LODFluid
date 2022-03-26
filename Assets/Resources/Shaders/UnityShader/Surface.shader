@@ -1,4 +1,4 @@
-﻿Shader "Custom/Terrain" {
+﻿Shader "LODFluid/Terrain" {
 	Properties{
 		_MainTex("Texture", 2D) = "white" {}
 		_NormalMap("Normals", 2D) = "bump" {}

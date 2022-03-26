@@ -1,4 +1,4 @@
-﻿Shader "Custom/Water" {
+﻿Shader "LODFluid/Water" {
 	Properties{		
 		_Color("Color", Color) = (0, 0, 1, 0.8)
 		[NoScaleOffset] _StateTex("State", 2D) = "black" {}

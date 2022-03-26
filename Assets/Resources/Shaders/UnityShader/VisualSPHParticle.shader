@@ -1,4 +1,4 @@
-Shader "Unlit/SPHParticle"
+Shader "LODFluid/Particle"
 {
     Properties
     {

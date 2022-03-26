@@ -21,18 +21,22 @@ namespace LODFluid
 
         public RenderTexture ExternHeightTexture;
 
+        public Material InitHeightMaterial;
+
         public Vector2 Min;
         public Vector2 Max { get { return Min + (Vector2)Resolution * CellLength; } }
         public Vector2Int Resolution;
         public float CellLength;
 
-        public ShallowWaterSolver(Vector2Int vResolution, float vCellLength, Vector2 vShallowWaterMin)
+        public ShallowWaterSolver(Texture2D vTerrianHeightMap, ChunkedPlane vTargetChunkedPlane, Vector2Int vResolution, float vCellLength, Vector2 vShallowWaterMin)
         {
             Min = vShallowWaterMin;
             Resolution = vResolution;
             CellLength = vCellLength;
             int Width = vResolution.x;
             int Height = vResolution.y;
+
+            InitHeightMaterial = Resources.Load<Material>("Materials/InitStateTexture");
 
             StateTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.ARGBFloat)
             {
@@ -61,6 +65,20 @@ namespace LODFluid
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
+
+            Camera.main.depthTextureMode = DepthTextureMode.Depth;
+            if (vTerrianHeightMap != null)
+            {
+                if (InitHeightMaterial != null)
+                    Graphics.Blit(vTerrianHeightMap, StateTexture, InitHeightMaterial);
+                else
+                    Graphics.Blit(vTerrianHeightMap, StateTexture);
+            }
+
+            foreach (var material in vTargetChunkedPlane.Materials)
+            {
+                material.SetTexture("_StateTex", StateTexture);
+            }
         }
 
         public void Solve(float vTimeStep, float vGravity, float PipeArea, float vPipeLength)

@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class DynamicObjectSimulator : MonoBehaviour
+public class DynamicObjectController : MonoBehaviour
 {
     [Range(0.1f, 100.0f)]
     public float ControllerForceFactor = 1.0f;

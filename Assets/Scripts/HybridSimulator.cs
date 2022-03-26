@@ -37,10 +37,8 @@ namespace LODFluid
         public int PressureIterationCount = 3;
 
         [Header("Shallow Water")]
-        public Material[] Materials;
-        public ComputeShader ShallowWaterShader;
-        public Texture2D InitialState;
-        public Material InitHeightMap;
+        public ChunkedPlane ChunkedPlane;
+        public Texture2D TerrianHeightTexture;
         public Vector2 ShallowWaterMin = new Vector2(0, 0);
 
         public Vector2Int Resolution = new Vector2Int(512, 512);
@@ -57,22 +55,8 @@ namespace LODFluid
         private void Start()
         {
             DFSPH = new DivergenceFreeSPHSolver(BoundaryObjects, MaxParticleCount, SimulationRangeMin, SimulationRangeRes, ParticleRadius);
-            ShallowWater = new ShallowWaterSolver(Resolution, CellLength, ShallowWaterMin);
+            ShallowWater = new ShallowWaterSolver(TerrianHeightTexture, ChunkedPlane, Resolution, CellLength, ShallowWaterMin);
             Hybrid = new HybridSolver();
-
-            Camera.main.depthTextureMode = DepthTextureMode.Depth;
-            if (InitialState != null)
-            {
-                if (InitHeightMap != null)
-                    Graphics.Blit(InitialState, ShallowWater.StateTexture, InitHeightMap);
-                else
-                    Graphics.Blit(InitialState, ShallowWater.StateTexture);
-            }
-
-            foreach (var material in Materials)
-            {
-                material.SetTexture("_StateTex", ShallowWater.StateTexture);
-            }
         }
 
         private void Update()
