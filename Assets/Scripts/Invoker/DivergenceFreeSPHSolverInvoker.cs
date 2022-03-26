@@ -23,7 +23,7 @@ namespace LODFluid
 
         public DivergenceFreeSPHSolverInvoker(uint vMaxParticleCount)
         {
-            DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Solver/DivergenceFreeSPHSolver");
+            DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Shaders/Solver/DivergenceFreeSPHSolver");
             computeFluidPropertyKernel = DivergenceFreeSPHSloverCS.FindKernel("computeFluidProperty");
             computeDensityChangeKernel = DivergenceFreeSPHSloverCS.FindKernel("computeDensityChange");
             sloveDivergenceIterationKernel = DivergenceFreeSPHSloverCS.FindKernel("solveDivergenceIteration");

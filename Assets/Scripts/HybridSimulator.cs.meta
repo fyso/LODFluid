@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 4cb6e946ca77b7e4184c730805ae803f
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
+  - ShallowWaterShader: {fileID: 7200000, guid: a37c3a6c9bf655b40b1b6c76169341c1, type: 3}
+  - InitialState: {fileID: 2800000, guid: 43149b43056f9c340b49f9a408fc3284, type: 3}
+  - InitHeightMap: {fileID: 2100000, guid: a1079684b02cda94a9a601a811134170, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

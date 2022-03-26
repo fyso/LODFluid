@@ -30,7 +30,7 @@ namespace LODFluid
 
         public GPURadixSortHash(uint vMaxParticleSize)
         {
-            CompactNSearchCS = Resources.Load<ComputeShader>("CompactNSearch");
+            CompactNSearchCS = Resources.Load<ComputeShader>("Shaders/GPU Operation/GPURadixSortHash");
             computeMortonCodeKernel = CompactNSearchCS.FindKernel("computeMortonCode");
             assignParticleKernel = CompactNSearchCS.FindKernel("assignParticle");
             computeHashGridParticleOffsetKernel = CompactNSearchCS.FindKernel("computeHashGridParticleOffset");

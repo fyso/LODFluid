@@ -28,7 +28,7 @@ namespace LODFluid
 
         public GPUCountingSortHash(uint vMaxParticleCount)
         {
-            GPUCountingHashSortCS = Resources.Load<ComputeShader>("GPU Operation/GPUCountingSortHash");
+            GPUCountingHashSortCS = Resources.Load<ComputeShader>("Shaders/GPU Operation/GPUCountingSortHash");
             insertParticleIntoHashGridKernel = GPUCountingHashSortCS.FindKernel("insertParticleIntoHashGrid");
             countingSortFullKernel = GPUCountingHashSortCS.FindKernel("countingSortFull");
 

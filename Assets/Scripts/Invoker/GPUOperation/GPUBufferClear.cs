@@ -16,7 +16,7 @@ namespace LODFluid
 
         public GPUBufferClear()
         {
-            GPUBufferClearCS = Resources.Load<ComputeShader>("GPU Operation/GPUBufferClear");
+            GPUBufferClearCS = Resources.Load<ComputeShader>("Shaders/GPU Operation/GPUBufferClear");
             clearUIntBufferWithZeroKernel = GPUBufferClearCS.FindKernel("clearUIntBufferWithZero");
             GPUBufferClearCS.GetKernelThreadGroupSizes(clearUIntBufferWithZeroKernel, out clearUIntBufferWithZeroGroupThreadNum, out _, out _);
             clearFloatBufferWithZeroKernel = GPUBufferClearCS.FindKernel("clearFloatBufferWithZero");

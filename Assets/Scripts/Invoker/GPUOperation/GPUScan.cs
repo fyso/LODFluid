@@ -27,7 +27,7 @@ namespace LODFluid
 
         public GPUScan(uint vScanBufferSize)
         {
-            GPUScanCS = Resources.Load<ComputeShader>("GPU Operation/GPUScan");
+            GPUScanCS = Resources.Load<ComputeShader>("Shaders/GPU Operation/GPUScan");
             scanInBucketKernel = GPUScanCS.FindKernel("scanInBucket");
             scanBucketResultKernel = GPUScanCS.FindKernel("scanBucketResult");
             scanAddBucketResultKernel = GPUScanCS.FindKernel("scanAddBucketResult");

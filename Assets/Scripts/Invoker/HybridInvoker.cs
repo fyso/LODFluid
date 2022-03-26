@@ -12,7 +12,7 @@ namespace LODFluid
         private int GridToParticleKernel;
         public HybridInvoker()
         {
-            HybridSolverCS = Resources.Load<ComputeShader>("Solver/HybridSolver");
+            HybridSolverCS = Resources.Load<ComputeShader>("Shaders/Solver/HybridSolver");
             ComputeParticleThickOfCellKernel = HybridSolverCS.FindKernel("computeParticleThickOfCell");
             ParticleToGridKernel = HybridSolverCS.FindKernel("particleToGrid");
             GridToParticleKernel = HybridSolverCS.FindKernel("gridToParticle");

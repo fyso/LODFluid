@@ -11,7 +11,7 @@ namespace LODFluid
 
         public EnforceBoundarySolverInvoker()
         {
-            ForceBasedBoundaryCS = Resources.Load<ComputeShader>("Solver/EnforceBoundarySolver");
+            ForceBasedBoundaryCS = Resources.Load<ComputeShader>("Shaders/Solver/EnforceBoundarySolver");
             solveBoundaryKernel = ForceBasedBoundaryCS.FindKernel("solveBoundary");
         }
 

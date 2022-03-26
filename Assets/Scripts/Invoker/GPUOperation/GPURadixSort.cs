@@ -36,7 +36,7 @@ namespace LODFluid
 
         public GPURadixSort(uint vRadixSortCacheSize)
         {
-            GPURadixSortCS = Resources.Load<ComputeShader>("GPU Operation/GPURadixSort");
+            GPURadixSortCS = Resources.Load<ComputeShader>("Shaders/GPU Operation/GPURadixSort");
             fourWayRadixSortKernel = GPURadixSortCS.FindKernel("fourWayRadixSort");
             shuffleKernel = GPURadixSortCS.FindKernel("shuffleResult");
 

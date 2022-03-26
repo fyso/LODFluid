@@ -26,7 +26,7 @@ namespace LODFluid
 
         public DynamicParticleToolInvoker(uint vMaxParticleSize, float vTargetParticleRadius)
         {
-            DynamicParticleToolCS = Resources.Load<ComputeShader>("DynamicParticleTool");
+            DynamicParticleToolCS = Resources.Load<ComputeShader>("Shaders/DynamicParticleTool");
             AddParticleBlockKernel = DynamicParticleToolCS.FindKernel("addParticleBlock");
             UpdateParticleCountArgmentKernel = DynamicParticleToolCS.FindKernel("updateParticleCountArgment");
             ScatterParticleDataKernel = DynamicParticleToolCS.FindKernel("scatterParticleData");

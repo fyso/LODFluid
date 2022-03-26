@@ -93,7 +93,7 @@ namespace LODFluid
 
         public VolumeMapBoundarySolverInvoker()
         {
-            m_GenerateVolumeMapCS = Resources.Load<ComputeShader>("Solver/VolumeMapBoundarySolver");
+            m_GenerateVolumeMapCS = Resources.Load<ComputeShader>("Shaders/Solver/VolumeMapBoundarySolver");
 
             m_GenerateVolumeMapKernel = m_GenerateVolumeMapCS.FindKernel("generateVolumeMap");
             m_GenerateSignedDistanceMapKernel = m_GenerateVolumeMapCS.FindKernel("generateSignedDistanceMap");
