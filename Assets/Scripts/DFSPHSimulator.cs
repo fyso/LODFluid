@@ -14,6 +14,9 @@ namespace LODFluid
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
+        [Range(0.025f, 0.25f)]
+        public float ParticleRadius = 0.25f;
+
         [Range(0.005f, 0.05f)]
         public float TimeStep = 0.016666667f;
 
@@ -26,39 +29,34 @@ namespace LODFluid
         [Range(0, 10f)]
         public float Gravity = 9.8f;
 
+        [Range(100000, 300000)]
+        public uint MaxParticleCount = 250000;
+
         public int DivergenceIterationCount = 3;
         public int PressureIterationCount = 1;
 
-        private DFSPHInvoker DFSPH;
+        private DivergenceFreeSPHSolver DFSPH;
 
         private void OnDrawGizmos()
         {
             Vector3 SimulationMin = SimulationRangeMin;
-            Vector3 SimulationMax = SimulationRangeMin + (Vector3)SimulationRangeRes * GPUGlobalParameterManager.GetInstance().SearchRadius;
+            Vector3 SimulationMax = SimulationRangeMin + (Vector3)SimulationRangeRes * ParticleRadius * 4.0f;
             Gizmos.color = new Color(1.0f, 0.0f, 0.0f);
             Gizmos.DrawWireCube((SimulationMin + SimulationMax) * 0.5f, SimulationMax - SimulationMin);
 
-            float ParticleRaius = GPUGlobalParameterManager.GetInstance().Dynamic3DParticleRadius;
-            Vector3 WaterGenerateBlockMax = WaterGeneratePosition + new Vector3(WaterGenerateResolution.x * ParticleRaius * 2.0f, WaterGenerateResolution.y * ParticleRaius * 2.0f, WaterGenerateResolution.z * ParticleRaius * 2.0f);
+            Vector3 WaterGenerateBlockMax = WaterGeneratePosition + new Vector3(WaterGenerateResolution.x * ParticleRadius * 2.0f, WaterGenerateResolution.y * ParticleRadius * 2.0f, WaterGenerateResolution.z * ParticleRadius * 2.0f);
             Gizmos.color = new Color(1.0f, 1.0f, 0.0f);
             Gizmos.DrawWireCube((WaterGeneratePosition + WaterGenerateBlockMax) * 0.5f, WaterGenerateBlockMax - WaterGeneratePosition);
         }
 
         void Start()
         {
-            DFSPH = new DFSPHInvoker(BoundaryObjects);
+            DFSPH = new DivergenceFreeSPHSolver(BoundaryObjects, MaxParticleCount, SimulationRangeMin, SimulationRangeRes, ParticleRadius);
         }
 
         private bool Emit = false;
         void Update()
         {
-            GPUGlobalParameterManager.GetInstance().SimualtionRangeMin = SimulationRangeMin;
-            GPUGlobalParameterManager.GetInstance().SimualtionRangeRes = SimulationRangeRes;
-            GPUGlobalParameterManager.GetInstance().TimeStep = TimeStep;
-            GPUGlobalParameterManager.GetInstance().Viscosity = Viscosity;
-            GPUGlobalParameterManager.GetInstance().SurfaceTension = SurfaceTension;
-            GPUGlobalParameterManager.GetInstance().Gravity = Gravity;
-
             if (Input.GetKeyDown(KeyCode.Space))
                 Emit = !Emit;
 
@@ -73,22 +71,22 @@ namespace LODFluid
             if (Input.GetKeyDown(KeyCode.P))
             {
                 uint[] ArgumentCPU = new uint[7];
-                GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer.GetData(ArgumentCPU);
+                DFSPH.Dynamic3DParticleIndirectArgumentBuffer.GetData(ArgumentCPU);
                 Debug.Log(ArgumentCPU[4]);
             }
         }
 
         private void FixedUpdate()
         {
-            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount);
+            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
         }
 
         void OnRenderObject()
         {
             SPHVisualMaterial.SetPass(0);
-            SPHVisualMaterial.SetBuffer("_particlePositionBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticlePositionBuffer);
-            SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", GPUResourceManager.GetInstance().Dynamic3DParticle.ParticleVelocityBuffer);
-            Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, GPUResourceManager.GetInstance().Dynamic3DParticleIndirectArgumentBuffer, 12);
+            SPHVisualMaterial.SetBuffer("_particlePositionBuffer", DFSPH.Dynamic3DParticle.ParticlePositionBuffer);
+            SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", DFSPH.Dynamic3DParticle.ParticleVelocityBuffer);
+            Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, DFSPH.Dynamic3DParticleIndirectArgumentBuffer, 12);
         }
     }
 }

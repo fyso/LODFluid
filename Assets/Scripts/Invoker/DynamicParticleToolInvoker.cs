@@ -14,7 +14,6 @@ namespace LODFluid
         private int DeleteParticleOutofRangeKernel;
 
         private uint MaxParticleSize;
-        private float TargetParticleRadius;
         private ParticleBuffer NarrowParticleCache;
         private ComputeBuffer ParticleScatterOffsetCache;
         private GPUScan GPUScanner;
@@ -24,7 +23,7 @@ namespace LODFluid
             ParticleScatterOffsetCache.Release();
         }
 
-        public DynamicParticleToolInvoker(uint vMaxParticleSize, float vTargetParticleRadius)
+        public DynamicParticleToolInvoker(uint vMaxParticleSize)
         {
             DynamicParticleToolCS = Resources.Load<ComputeShader>("Shaders/DynamicParticleTool");
             AddParticleBlockKernel = DynamicParticleToolCS.FindKernel("addParticleBlock");
@@ -34,7 +33,6 @@ namespace LODFluid
             DeleteParticleOutofRangeKernel = DynamicParticleToolCS.FindKernel("deleteParticleOutofRange");
 
             MaxParticleSize = vMaxParticleSize;
-            TargetParticleRadius = vTargetParticleRadius;
             ParticleScatterOffsetCache = new ComputeBuffer((int)vMaxParticleSize, sizeof(uint));
             NarrowParticleCache = new ParticleBuffer(vMaxParticleSize);
             GPUScanner = new GPUScan(vMaxParticleSize);
@@ -45,7 +43,8 @@ namespace LODFluid
             ComputeBuffer voParticleIndirectArgumentBuffer,
             Vector3 vWaterGeneratePos,
             Vector3Int vWaterBlockRes,
-            Vector3 vInitParticleVel)
+            Vector3 vInitParticleVel,
+            float vParticleRadius)
         {
             int AddedParticleCount = vWaterBlockRes.x * vWaterBlockRes.y * vWaterBlockRes.z;
             DynamicParticleToolCS.SetFloats("WaterGeneratePos", vWaterGeneratePos.x, vWaterGeneratePos.y, vWaterGeneratePos.z);
@@ -54,13 +53,13 @@ namespace LODFluid
             DynamicParticleToolCS.SetInt("WaterBlockResZ", vWaterBlockRes.z);
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
             DynamicParticleToolCS.SetInt("MaxParticleCount", (int)MaxParticleSize);
-            DynamicParticleToolCS.SetFloat("ParticleRadius", TargetParticleRadius);
+            DynamicParticleToolCS.SetFloat("ParticleRadius", vParticleRadius);
             DynamicParticleToolCS.SetFloats("ParticleInitVel", vInitParticleVel.x, vInitParticleVel.y, vInitParticleVel.z);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleIndrectArgment_RW", voParticleIndirectArgumentBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticlePosition_RW", voTarget.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleVelocity_RW", voTarget.ParticleVelocityBuffer);
             DynamicParticleToolCS.SetBuffer(AddParticleBlockKernel, "ParticleFilter_RW", voTarget.ParticleFilterBuffer);
-            DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / GPUGlobalParameterManager.GetInstance().SPHThreadSize), 1, 1);
+            DynamicParticleToolCS.Dispatch(AddParticleBlockKernel, (int)Mathf.Ceil((float)AddedParticleCount / Common.SPHThreadCount), 1, 1);
             
             DynamicParticleToolCS.SetInt("AddedParticleCount", AddedParticleCount);
             DynamicParticleToolCS.SetInt("MaxParticleCount", (int)MaxParticleSize);

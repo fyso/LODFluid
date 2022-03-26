@@ -175,7 +175,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 39e7dc4411d92f54e92c24d88dc36767, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -466,10 +466,12 @@ MonoBehaviour:
   BoundaryObjects:
   - {fileID: 8164078560040880145}
   - {fileID: 137159759222451813}
+  ParticleRadius: 0.25
   TimeStep: 0.05
   Viscosity: 0.0138
   SurfaceTension: 0.0463
   Gravity: 9.8
+  MaxParticleCount: 250000
   DivergenceIterationCount: 1
   PressureIterationCount: 3
 --- !u!4 &1784697732

@@ -71,8 +71,8 @@ namespace LODFluid
                 ref voTarget.ParticleMortonCodeBuffer,
                 ref ParticleIndexCache,
                 vParticleIndirectArgumentBuffer,
-                GPUGlobalParameterManager.GetInstance().ParticleCountArgumentOffset,
-                GPUGlobalParameterManager.GetInstance().ParticleXGridCountArgumentOffset);
+                Common.ParticleCountArgumentOffset,
+                Common.ParticleXGridCountArgumentOffset);
 
             CompactNSearchCS.SetBuffer(assignParticleKernel, "ParticleIndrectArgment_R", vParticleIndirectArgumentBuffer);
             CompactNSearchCS.SetBuffer(assignParticleKernel, "NewIndex_R", ParticleIndexCache);
