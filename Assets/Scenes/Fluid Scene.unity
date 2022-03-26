@@ -728,7 +728,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bounds:
-    m_Center: {x: 0.0000009536743, y: -0.0000008940697, z: 0}
+    m_Center: {x: -0.0000009536743, y: -0.0000008940697, z: 0}
     m_Extent: {x: 96.46034, y: 24.373571, z: 21.485075}
   dimensions: {x: 32, y: 32, z: 32}
   fitToVertices: 1
@@ -737,7 +737,7 @@ MonoBehaviour:
   targetVoxelSize: 0
   useTargetVoxelSize: 0
   useManualBounds: 0
-  sdfData: {fileID: 11400000, guid: c587d60fc454199449ac8acf0601eca3, type: 2}
+  sdfData: {fileID: 11400000, guid: d33aefe2a917f2d418ef41636e4e5485, type: 2}
   raySamples: 256
   jitterSeed: 555
   jitterScale: 0.75

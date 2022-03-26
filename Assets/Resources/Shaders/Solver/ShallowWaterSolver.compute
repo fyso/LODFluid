@@ -4,10 +4,6 @@
 #pragma kernel FluxComputation
 #pragma kernel FluxApply
 
-#define ThreadGroupX 32
-#define ThreadGroupY 32
-#define NUMTHREADS numthreads(ThreadGroupX, ThreadGroupY, 1)
-
 // Sampling macro, just to simplify the code a bit
 #define SAMPLE_WITH_OFFSET(tex, x, y) ((tex[id.xy + uint2(x, y)]))
 #define CURRENT_SAMPLE(tex) (tex[id.xy])
@@ -53,28 +49,28 @@ float _PipeArea;
 float _PipeLength;
 
 /* Pass 1. Flux field computation */
-[NUMTHREADS]
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
 void FluxComputation(uint3 id : SV_DispatchThreadID)
 {
 	// Sample the heighmap (state map)
-    float4 state = CURRENT_SAMPLE(HeightMap) + float4(0, CURRENT_SAMPLE(ExternHeight), 0, 0);
-    float4 stateLeft = LEFT_SAMPLE(HeightMap) + float4(0, LEFT_SAMPLE(ExternHeight), 0, 0);
-    float4 stateRight = RIGHT_SAMPLE(HeightMap) + float4(0, RIGHT_SAMPLE(ExternHeight), 0, 0);
-    float4 stateTop = TOP_SAMPLE(HeightMap) + float4(0, TOP_SAMPLE(ExternHeight), 0, 0);
-    float4 stateBottom = BOTTOM_SAMPLE(HeightMap) + float4(0, BOTTOM_SAMPLE(ExternHeight), 0, 0);
+    float4 state = HeightMap[id.xy] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateLeft = HeightMap[id.xy + uint2(-1, 0)] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateRight = HeightMap[id.xy + uint2(1, 0)]+ float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateTop = HeightMap[id.xy + uint2(0, 1)] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateBottom = HeightMap[id.xy + uint2(0, -1)] + float4(0, ExternHeight[id.xy], 0, 0);
 
-    float waterHeight = WATER_HEIGHT(state);
+    float waterHeight = state.g;
 
 	// Flow simulation using shallow-water model. Computation of the velocity field and water height changes.
 	// Sample flux
-    float4 outputFlux = CURRENT_SAMPLE(FluxMap);
+    float4 outputFlux = FluxMap[id.xy];
 
 	// Overall height difference in each direction
-    float4 heightDifference = FULL_HEIGHT(state) - float4(
-		FULL_HEIGHT(stateLeft),
-		FULL_HEIGHT(stateRight),
-		FULL_HEIGHT(stateTop),
-		FULL_HEIGHT(stateBottom));
+    float4 heightDifference = (state.r + state.g) - float4(
+		(stateLeft.r + stateLeft.g),
+		(stateRight.r + stateRight.g),
+		(stateTop.r + stateTop.g),
+		(stateBottom.r + stateBottom.g));
 
 	// Output flux	
     outputFlux = max(0, outputFlux + _TimeDelta * _Gravity * _PipeArea * heightDifference / _PipeLength);
@@ -86,44 +82,43 @@ void FluxComputation(uint3 id : SV_DispatchThreadID)
 		larger than the current amount in the given cell, then flux will
 		be scaled down with an appropriate factor
 	*/
-    outputFlux *= min(1, waterHeight * _CellSize.x * _CellSize.y / (SUM_COMPS(outputFlux) * _TimeDelta));
+    outputFlux *= min(1, waterHeight * _CellSize.x * _CellSize.y / ((outputFlux.r + outputFlux.g + outputFlux.b + outputFlux.a) * _TimeDelta));
 
 	// Boundaries (uncomment thisif you want water to bounce of boundaries)						
-    if (id.x == 0) LDIR(outputFlux) = 0;
-    if (id.y == 0) BDIR(outputFlux) = 0;
-    if (id.x == _Width - 1) RDIR(outputFlux) = 0;
-    if (id.y == _Height - 1) TDIR(outputFlux) = 0;
+    if (id.x == 0) outputFlux.r = 0;
+    if (id.y == 0) outputFlux.a = 0;
+    if (id.x == _Width - 1) outputFlux.g = 0;
+    if (id.y == _Height - 1) outputFlux.b = 0;
 
 	// Write new flux to the FluxMap
-	CURRENT_SAMPLE(FluxMap) = max(0, outputFlux);
+	FluxMap[id.xy] = max(0, outputFlux);
 }
 
 /* Pass 2. Applying fluxes to the actual cells and changing weter height */
-[NUMTHREADS]
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
 void FluxApply(uint3 id : SV_DispatchThreadID)
 {
-    float4 state = CURRENT_SAMPLE(HeightMap) + float4(0, CURRENT_SAMPLE(ExternHeight), 0, 0);
-    float4 outputFlux = CURRENT_SAMPLE(FluxMap);
+    float4 state = HeightMap[id.xy] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 outputFlux = FluxMap[id.xy];
     float4 inputFlux = float4(
-		RDIR(LEFT_SAMPLE(FluxMap)),
-		LDIR(RIGHT_SAMPLE(FluxMap)),
-		BDIR(TOP_SAMPLE(FluxMap)),
-		TDIR(BOTTOM_SAMPLE(FluxMap)));
-    float waterHeightBefore = WATER_HEIGHT(state);
+		FluxMap[id.xy + uint2(-1, 0)].g,
+		FluxMap[id.xy + uint2(1, 0)].r,
+		FluxMap[id.xy + uint2(0, 1)].a,
+		FluxMap[id.xy + uint2(0, -1)].b);
+    float waterHeightBefore = state.g;
 
 	// Water surface and velocity field update
 	// volume is changing by amount on incoming fluid volume minus outgoing
-    float volumeDelta = SUM_COMPS(inputFlux) - SUM_COMPS(outputFlux);
+    float volumeDelta = (inputFlux.r + inputFlux.g + inputFlux.b + inputFlux.a) - (outputFlux.r + outputFlux.g + outputFlux.b + outputFlux.a);
 
 	// Then, we update the water height in the current (x, y) cell:
-	WATER_HEIGHT(state) += _TimeDelta * volumeDelta / (_CellSize.x * _CellSize.y);
+	state.g += _TimeDelta * volumeDelta / (_CellSize.x * _CellSize.y);
 
 	// Write new state to the HeightMap
-	CURRENT_SAMPLE(HeightMap) = state;
+	HeightMap[id.xy] = state;
 
 	// Compute new velocity from flux to the VelocityMap
-	CURRENT_SAMPLE(VelocityMap) = float2(
-		0.5 * (LDIR(inputFlux) - LDIR(outputFlux) + RDIR(outputFlux) - RDIR(inputFlux)),
-		0.5 * (BDIR(inputFlux) - BDIR(outputFlux) + TDIR(outputFlux) - TDIR(inputFlux)));
-		/// _PipeLength * 0.5 * (waterHeightBefore + WATER_HEIGHT(state));
+	VelocityMap[id.xy] = float2(
+		0.5f * (inputFlux.r - outputFlux.r + outputFlux.g - inputFlux.g),
+		0.5f * (inputFlux.a - outputFlux.a + outputFlux.b - inputFlux.b));
 }
