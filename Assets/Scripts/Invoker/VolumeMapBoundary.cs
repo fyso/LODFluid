@@ -39,7 +39,7 @@ namespace LODFluid
         }
     }
 
-    public class VolumeMapBoundarySolverInvoker : Singleton<VolumeMapBoundarySolverInvoker>
+    public class VolumeMapBoundary
     {
         private ComputeShader m_GenerateVolumeMapCS;
 
@@ -91,7 +91,7 @@ namespace LODFluid
             0.989400934991649938510249739920f, 0, 0, 0
         };
 
-        public VolumeMapBoundarySolverInvoker()
+        public VolumeMapBoundary()
         {
             m_GenerateVolumeMapCS = Resources.Load<ComputeShader>("Shaders/Solver/VolumeMapBoundarySolver");
 

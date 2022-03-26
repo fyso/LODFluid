@@ -7,7 +7,7 @@ namespace LODFluid
 {
     public class HybridSimulator : MonoBehaviour
     {
-        [Header("Hybrid Factor")]
+        [Header("Hybrid")]
         [Range(5, 10)]
         public uint HybridBandWidth = 5;
 
@@ -36,8 +36,6 @@ namespace LODFluid
         public int DivergenceIterationCount = 3;
         public int PressureIterationCount = 3;
 
-        private DivergenceFreeSPHSolver DFSPH;
-
         [Header("Shallow Water")]
         public Material[] Materials;
         public ComputeShader ShallowWaterShader;
@@ -52,12 +50,15 @@ namespace LODFluid
         public float PipeArea = 5.0f;
         public float PipeLength = 1.0f;
 
+        private DivergenceFreeSPHSolver DFSPH;
         private ShallowWaterSolver ShallowWater;
+        private HybridSolver Hybrid;
 
         private void Start()
         {
             DFSPH = new DivergenceFreeSPHSolver(BoundaryObjects, MaxParticleCount, SimulationRangeMin, SimulationRangeRes, ParticleRadius);
             ShallowWater = new ShallowWaterSolver(Resolution, CellLength, ShallowWaterMin);
+            Hybrid = new HybridSolver();
 
             Camera.main.depthTextureMode = DepthTextureMode.Depth;
             if (InitialState != null)
@@ -91,15 +92,7 @@ namespace LODFluid
             DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
 
             //Hybrid step
-            HybridInvoker.GetInstance().CoupleParticleAndGrid(
-                DFSPH.Dynamic3DParticle,
-                ShallowWater,
-                DFSPH.Dynamic3DParticleIndirectArgumentBuffer,
-                DFSPH.HashGridCellParticleCountBuffer,
-                DFSPH.HashGridMin,
-                DFSPH.HashGridCellLength,
-                DFSPH.HashGridRes,
-                TimeStep, HybridBandWidth, ShallowWater.Min, ShallowWater.Max, ShallowWater.CellLength);
+            Hybrid.CoupleParticleAndGrid(DFSPH, ShallowWater, HybridBandWidth, TimeStep);
         }
 
         private void OnDrawGizmos()

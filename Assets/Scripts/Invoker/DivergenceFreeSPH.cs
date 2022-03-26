@@ -3,7 +3,7 @@ using UnityEngine.Profiling;
 
 namespace LODFluid
 {
-    public class DivergenceFreeSPHSolverInvoker
+    public class DivergenceFreeSPH
     {
         private ComputeShader DivergenceFreeSPHSloverCS;
         private int computeFluidPropertyKernel;
@@ -16,12 +16,12 @@ namespace LODFluid
 
         private ParticleBuffer BackParticleCache;
 
-        ~DivergenceFreeSPHSolverInvoker()
+        ~DivergenceFreeSPH()
         {
 
         }
 
-        public DivergenceFreeSPHSolverInvoker(uint vMaxParticleCount)
+        public DivergenceFreeSPH(uint vMaxParticleCount)
         {
             DivergenceFreeSPHSloverCS = Resources.Load<ComputeShader>("Shaders/Solver/DivergenceFreeSPHSolver");
             computeFluidPropertyKernel = DivergenceFreeSPHSloverCS.FindKernel("computeFluidProperty");

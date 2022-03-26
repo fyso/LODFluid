@@ -70,9 +70,7 @@ namespace LODFluid
             GPURadixSorter.RadixSort(
                 ref voTarget.ParticleMortonCodeBuffer,
                 ref ParticleIndexCache,
-                vParticleIndirectArgumentBuffer,
-                Common.ParticleCountArgumentOffset,
-                Common.ParticleXGridCountArgumentOffset);
+                vParticleIndirectArgumentBuffer);
 
             CompactNSearchCS.SetBuffer(assignParticleKernel, "ParticleIndrectArgment_R", vParticleIndirectArgumentBuffer);
             CompactNSearchCS.SetBuffer(assignParticleKernel, "NewIndex_R", ParticleIndexCache);

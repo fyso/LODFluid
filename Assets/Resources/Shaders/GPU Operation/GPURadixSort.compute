@@ -1,3 +1,5 @@
+#include "../Common.hlsl"
+
 #define RADIX_SORT_THREAD_NUM 512
 
 #pragma kernel fourWayRadixSort
@@ -5,8 +7,6 @@
 
 uint ShiftWidth;
 
-uint ParticleCountArgumentOffset;
-uint ParticleXGridCountArgumentOffset;
 StructuredBuffer<uint> IndrectArgment_R;
 
 RWStructuredBuffer<uint> OldKey_RW;

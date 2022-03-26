@@ -4,13 +4,14 @@ using UnityEngine;
 
 namespace LODFluid
 {
-    public class HybridInvoker : Singleton<HybridInvoker>
+    public class Hybrid
     {
         private ComputeShader HybridSolverCS;
         private int ComputeParticleThickOfCellKernel;
         private int ParticleToGridKernel;
         private int GridToParticleKernel;
-        public HybridInvoker()
+
+        public Hybrid()
         {
             HybridSolverCS = Resources.Load<ComputeShader>("Shaders/Solver/HybridSolver");
             ComputeParticleThickOfCellKernel = HybridSolverCS.FindKernel("computeParticleThickOfCell");

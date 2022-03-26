@@ -63,9 +63,7 @@ namespace LODFluid
         public void RadixSort(
             ref ComputeBuffer voKey,
             ref ComputeBuffer voValue,
-            ComputeBuffer vParticleIndrectArgment,
-            uint vParticleCountArgumentOffset,
-            uint vParticleXGridCountArgumentOffset)
+            ComputeBuffer vParticleIndrectArgment)
         {
             KayValuePair[] DoubleKeyValuePair = new KayValuePair[2];
             DoubleKeyValuePair[0].Key = voKey;
@@ -85,8 +83,6 @@ namespace LODFluid
                     New = Temp;
                 }
                 GPURadixSortCS.SetInt("ShiftWidth", i);
-                GPURadixSortCS.SetInt("ParticleCountArgumentOffset", (int)vParticleCountArgumentOffset);
-                GPURadixSortCS.SetInt("ParticleXGridCountArgumentOffset", (int)vParticleXGridCountArgumentOffset);
                 GPURadixSortCS.SetBuffer(fourWayRadixSortKernel, "OldKey_RW", DoubleKeyValuePair[Old].Key);
                 GPURadixSortCS.SetBuffer(fourWayRadixSortKernel, "OldValue_RW", DoubleKeyValuePair[Old].Value);
                 GPURadixSortCS.SetBuffer(fourWayRadixSortKernel, "IndrectArgment_R", vParticleIndrectArgment);

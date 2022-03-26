@@ -51,9 +51,10 @@ namespace LODFluid
         public ComputeBuffer Dynamic3DParticleVolumeBuffer;
         public ComputeBuffer Dynamic3DParticleBoundaryVelocityBuffer;
 
-        private DynamicParticleToolInvoker DynamicParticleTool;
-        private GPUCountingSortHash CompactNSearch;
-        private DivergenceFreeSPHSolverInvoker DivergenceFreeSPHSolverInvoker;
+        private DynamicParticle DynamicParticleTool;
+        private GPUCountingSortHash CompactNSearchTool;
+        private DivergenceFreeSPH DivergenceFreeSPHTool;
+        private VolumeMapBoundary VolumeMapBoundaryTool;
         private List<GameObject> BoundaryObjects;
 
         public Vector3 SimulationRangeMin;
@@ -78,9 +79,9 @@ namespace LODFluid
             SimulationRangeMin = vSimulationRangeMin;
             SimulationRangeRes = vSimulationRangeRes;
 
-            CompactNSearch = new GPUCountingSortHash(vMaxParticleCount);
-            DynamicParticleTool = new DynamicParticleToolInvoker(vMaxParticleCount);
-            DivergenceFreeSPHSolverInvoker = new DivergenceFreeSPHSolverInvoker(vMaxParticleCount);
+            CompactNSearchTool = new GPUCountingSortHash(vMaxParticleCount);
+            DynamicParticleTool = new DynamicParticle(vMaxParticleCount);
+            DivergenceFreeSPHTool = new DivergenceFreeSPH(vMaxParticleCount);
 
             SignedDistance = new List<CubicMap>();
             Volume = new List<CubicMap>();
@@ -113,7 +114,8 @@ namespace LODFluid
 
             HashGridCellParticleOffsetBuffer = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
 
-            VolumeMapBoundarySolverInvoker.GetInstance().GenerateBoundaryMapData(
+            VolumeMapBoundaryTool = new VolumeMapBoundary();
+            VolumeMapBoundaryTool.GenerateBoundaryMapData(
                 vBoundaryObjects,
                 Volume,
                 SignedDistance,
@@ -161,7 +163,7 @@ namespace LODFluid
                     ref Dynamic3DParticle,
                     Dynamic3DParticleIndirectArgumentBuffer);
 
-            CompactNSearch.CountingHashSort(
+            CompactNSearchTool.CountingHashSort(
                 ref Dynamic3DParticle,
                 HashGridCellParticleCountBuffer,
                 HashGridCellParticleOffsetBuffer,
@@ -169,7 +171,7 @@ namespace LODFluid
                 HashGridMin,
                 HashGridCellLength);
 
-            VolumeMapBoundarySolverInvoker.GetInstance().QueryClosestPointAndVolume(
+            VolumeMapBoundaryTool.QueryClosestPointAndVolume(
                     Dynamic3DParticleIndirectArgumentBuffer,
                     Dynamic3DParticle,
                     BoundaryObjects,
@@ -182,7 +184,7 @@ namespace LODFluid
                     SearchRadius,
                     ParticleRadius);
 
-            DivergenceFreeSPHSolverInvoker.Slove(
+            DivergenceFreeSPHTool.Slove(
                     ref Dynamic3DParticle,
                     Dynamic3DParticleIndirectArgumentBuffer,
                     HashGridCellParticleCountBuffer,

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace LODFluid
 {
-    public class DynamicParticleToolInvoker
+    public class DynamicParticle
     {
         private ComputeShader DynamicParticleToolCS;
         private int AddParticleBlockKernel;
@@ -18,12 +18,12 @@ namespace LODFluid
         private ComputeBuffer ParticleScatterOffsetCache;
         private GPUScan GPUScanner;
 
-        ~DynamicParticleToolInvoker()
+        ~DynamicParticle()
         {
             ParticleScatterOffsetCache.Release();
         }
 
-        public DynamicParticleToolInvoker(uint vMaxParticleSize)
+        public DynamicParticle(uint vMaxParticleSize)
         {
             DynamicParticleToolCS = Resources.Load<ComputeShader>("Shaders/DynamicParticleTool");
             AddParticleBlockKernel = DynamicParticleToolCS.FindKernel("addParticleBlock");
