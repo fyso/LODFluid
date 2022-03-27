@@ -3,7 +3,7 @@ using UnityEngine.Profiling;
 
 namespace LODFluid
 {
-    public class ShallowWaterSolverInvoker: Singleton<ShallowWaterSolverInvoker>
+    public class ShallowWaterSolverInvoker
     {
         private ComputeShader ShallowWaterSolverCS;
         private int fluxComputationKernel;

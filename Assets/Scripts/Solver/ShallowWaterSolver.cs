@@ -28,6 +28,8 @@ namespace LODFluid
         public Vector2Int Resolution;
         public float CellLength;
 
+        private ShallowWaterSolverInvoker ShallowWater;
+
         public ShallowWaterSolver(Texture2D vTerrianHeightMap, ChunkedPlane vTargetChunkedPlane, Vector2Int vResolution, float vCellLength, Vector2 vShallowWaterMin)
         {
             Min = vShallowWaterMin;
@@ -35,6 +37,8 @@ namespace LODFluid
             CellLength = vCellLength;
             int Width = vResolution.x;
             int Height = vResolution.y;
+
+            ShallowWater = new ShallowWaterSolverInvoker();
 
             InitHeightMaterial = Resources.Load<Material>("Materials/InitStateTexture");
 
@@ -83,7 +87,7 @@ namespace LODFluid
 
         public void Solve(float vTimeStep, float vGravity, float PipeArea, float vPipeLength)
         {
-            ShallowWaterSolverInvoker.GetInstance().Solve(
+            ShallowWater.Solve(
                 StateTexture,
                 VelocityTexture,
                 WaterOutFluxTexture,
