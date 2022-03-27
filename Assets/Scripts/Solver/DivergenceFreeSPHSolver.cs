@@ -110,9 +110,8 @@ namespace LODFluid
 
             Dynamic3DParticleBoundaryVelocityBuffer = new ComputeBuffer((int)vMaxParticleCount, sizeof(float) * 3);
 
-            HashGridCellParticleCountBuffer = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
-
-            HashGridCellParticleOffsetBuffer = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
+            HashGridCellParticleCountBuffer = new ComputeBuffer((int)vMaxParticleCount * 2, sizeof(uint));
+            HashGridCellParticleOffsetBuffer = new ComputeBuffer((int)vMaxParticleCount * 2, sizeof(uint));
 
             VolumeMapBoundaryTool = new VolumeMapBoundary();
             VolumeMapBoundaryTool.GenerateBoundaryMapData(

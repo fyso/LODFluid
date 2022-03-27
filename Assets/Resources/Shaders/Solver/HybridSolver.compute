@@ -52,7 +52,7 @@ void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
     float Height = 0.0f;
     for (int i = 0; i < IterationCount; i++)
     {
-        uint CellLinerIndex = computeMorton3DNoHash(Cell3DIndex + uint3(0, i, 0));
+        uint CellLinerIndex = computeMorton3D(Cell3DIndex + uint3(0, i, 0));
         if (CellLinerIndex > HashGridResolutionX * HashGridResolutionY * HashGridResolutionZ)
             continue;
         uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];

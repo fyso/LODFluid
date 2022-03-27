@@ -25,13 +25,6 @@ uint expandBits3D(uint v)
     return v;
 }
 
-uint computeMorton3DNoHash(uint3 vCellIndex3D)
-{
-    return ((expandBits3D(vCellIndex3D.z) << 2) +
-        (expandBits3D(vCellIndex3D.y) << 1) +
-        expandBits3D(vCellIndex3D.x));
-}
-
 uint computeMorton3D(uint3 vCellIndex3D)
 {
     return ((expandBits3D(vCellIndex3D.z) << 2) +

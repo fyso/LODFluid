@@ -1,26 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &11400000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9635c321b210a824787bfd12d66edfbc, type: 3}
-  m_Name: sdfData_BoxBoundary
-  m_EditorClassIdentifier: 
-  dimensions: {x: 32, y: 32, z: 32}
-  bounds:
-    m_Center: {x: -0.0000009536743, y: -0.0000008940697, z: 0}
-    m_Extent: {x: 96.46034, y: 24.373571, z: 21.485075}
-  voxelSize: {x: 6.0287714, y: 1.5233482, z: 1.3428172}
-  nonUniformScale: {x: 4.489644, y: 1.134442, z: 1}
-  sdfTexture: {fileID: 5382830541153266554}
-  maxDistance: 203.57089
---- !u!117 &5382830541153266554
+--- !u!117 &-4847490760327483253
 Texture3D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -58,3 +38,23 @@ Texture3D:
     offset: 0
     size: 0
     path: 
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9635c321b210a824787bfd12d66edfbc, type: 3}
+  m_Name: sdfData_BoxBoundary
+  m_EditorClassIdentifier: 
+  dimensions: {x: 32, y: 32, z: 32}
+  bounds:
+    m_Center: {x: -0.0000009536743, y: -0.0000008940697, z: 0}
+    m_Extent: {x: 96.46034, y: 24.373571, z: 21.485075}
+  voxelSize: {x: 6.0287714, y: 1.5233482, z: 1.3428172}
+  nonUniformScale: {x: 4.489644, y: 1.134442, z: 1}
+  sdfTexture: {fileID: -4847490760327483253}
+  maxDistance: 203.57089
