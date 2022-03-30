@@ -17,6 +17,7 @@ namespace LODFluid
         public Vector3 WaterGeneratePosition = new Vector3(0, 0, 0);
         public Vector3Int WaterGenerateResolution = new Vector3Int(8, 1, 8);
         public Vector3 WaterGenerateInitVelocity = new Vector3(0, 0, 0);
+        public bool DrawParticle = true;
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
@@ -57,6 +58,7 @@ namespace LODFluid
             DFSPH = new DivergenceFreeSPHSolver(BoundaryObjects, MaxParticleCount, SimulationRangeMin, SimulationRangeRes, ParticleRadius);
             ShallowWater = new ShallowWaterSolver(TerrianHeightTexture, ChunkedPlane, Resolution, CellLength, ShallowWaterMin);
             Hybrid = new HybridSolver();
+            DFSPH.AddParticleBlock(WaterGeneratePosition, WaterGenerateResolution, WaterGenerateInitVelocity);
         }
 
         private void Update()
@@ -73,10 +75,10 @@ namespace LODFluid
             ShallowWater.Solve(TimeStep, Gravity, PipeArea, PipeLength);
 
             //SPH Step
-            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
+            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, 0.0f);
 
             //Hybrid step
-            Hybrid.CoupleParticleAndGrid(DFSPH, ShallowWater, HybridBandWidth, TimeStep);
+            Hybrid.CoupleParticleAndGrid(DFSPH, ShallowWater, HybridBandWidth * CellLength, TimeStep);
         }
 
         private void OnDrawGizmos()
@@ -93,10 +95,13 @@ namespace LODFluid
 
         void OnRenderObject()
         {
-            SPHVisualMaterial.SetPass(0);
-            SPHVisualMaterial.SetBuffer("_particlePositionBuffer", DFSPH.Dynamic3DParticle.ParticlePositionBuffer);
-            SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", DFSPH.Dynamic3DParticle.ParticleVelocityBuffer);
-            Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, DFSPH.Dynamic3DParticleIndirectArgumentBuffer, 12);
+            if(DrawParticle)
+            {
+                SPHVisualMaterial.SetPass(0);
+                SPHVisualMaterial.SetBuffer("_particlePositionBuffer", DFSPH.Dynamic3DParticle.ParticlePositionBuffer);
+                SPHVisualMaterial.SetBuffer("_particleVelocityBuffer", DFSPH.Dynamic3DParticle.ParticleVelocityBuffer);
+                Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, DFSPH.Dynamic3DParticleIndirectArgumentBuffer, 12);
+            }
         }
 
     }

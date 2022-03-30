@@ -100,11 +100,13 @@ namespace LODFluid
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticleVelocity_RW", NarrowParticleCache.ParticleVelocityBuffer);
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticleFilter_RW", NarrowParticleCache.ParticleFilterBuffer);
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticleMortonCode_RW", NarrowParticleCache.ParticleMortonCodeBuffer);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "NarrowParticleDensity_RW", NarrowParticleCache.ParticleDensityBuffer);
 
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticlePosition_R", voTargetParticleBuffer.ParticlePositionBuffer);
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticleVelocity_R", voTargetParticleBuffer.ParticleVelocityBuffer);
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticleFilter_R", voTargetParticleBuffer.ParticleFilterBuffer);
             DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticleMortonCode_R", voTargetParticleBuffer.ParticleMortonCodeBuffer);
+            DynamicParticleToolCS.SetBuffer(ScatterParticleDataKernel, "TargetParticleDensity_R", voTargetParticleBuffer.ParticleDensityBuffer);
 
             DynamicParticleToolCS.DispatchIndirect(ScatterParticleDataKernel, vParticleIndirectArgumentBuffer);
 

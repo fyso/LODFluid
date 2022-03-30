@@ -13,6 +13,8 @@ namespace LODFluid
         ComputeBuffer SortedParticlePosCache;
         ComputeBuffer SortedParticleVelCache;
         ComputeBuffer SortedParticleFilterCache;
+        ComputeBuffer SortedParticleMortonCodeCache;
+        ComputeBuffer SortedParticleDensityCache;
 
         GPUScan GPUScanner;
         GPUBufferClear GPUBufferClearer;
@@ -24,6 +26,8 @@ namespace LODFluid
             SortedParticlePosCache.Release();
             SortedParticleVelCache.Release();
             SortedParticleFilterCache.Release();
+            SortedParticleMortonCodeCache.Release();
+            SortedParticleDensityCache.Release();
         }
 
         public GPUCountingSortHash(uint vMaxParticleCount)
@@ -35,6 +39,8 @@ namespace LODFluid
             SortedParticlePosCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(float) * 3);
             SortedParticleVelCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(float) * 3);
             SortedParticleFilterCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
+            SortedParticleMortonCodeCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
+            SortedParticleDensityCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(float));
             ParticleCellIndexCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
             ParticleInnerSortIndexCache = new ComputeBuffer((int)vMaxParticleCount, sizeof(uint));
 
@@ -70,14 +76,20 @@ namespace LODFluid
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "ParticlePosition_R", voTarget.ParticlePositionBuffer);
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "ParticleVelocity_R", voTarget.ParticleVelocityBuffer);
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "ParticleFilter_R", voTarget.ParticleFilterBuffer);
+            GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "ParticleMortonCode_R", voTarget.ParticleMortonCodeBuffer);
+            GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "ParticleDensity_R", voTarget.ParticleDensityBuffer);
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "SortedParticlePosition_RW", SortedParticlePosCache);
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "SortedParticleVelocity_RW", SortedParticleVelCache);
             GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "SortedParticleFilter_RW", SortedParticleFilterCache);
+            GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "SortedParticleMortonCode_RW", SortedParticleMortonCodeCache);
+            GPUCountingHashSortCS.SetBuffer(countingSortFullKernel, "SortedParticleDensity_RW", SortedParticleDensityCache);
             GPUCountingHashSortCS.DispatchIndirect(countingSortFullKernel, vArgumentBuffer);
 
             Common.SwapComputeBuffer(ref SortedParticlePosCache, ref voTarget.ParticlePositionBuffer);
             Common.SwapComputeBuffer(ref SortedParticleVelCache, ref voTarget.ParticleVelocityBuffer);
             Common.SwapComputeBuffer(ref SortedParticleFilterCache, ref voTarget.ParticleFilterBuffer);
+            Common.SwapComputeBuffer(ref SortedParticleMortonCodeCache, ref voTarget.ParticleMortonCodeBuffer);
+            Common.SwapComputeBuffer(ref SortedParticleDensityCache, ref voTarget.ParticleDensityBuffer);
         }
     }
 }

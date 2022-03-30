@@ -1,10 +1,10 @@
 #include "../Common.hlsl"
 
 #pragma enable_d3d11_debug_symbols
+#pragma kernel computeParticleThickOfCell
 #pragma kernel rasterizeParticleProperty
 #pragma kernel particleToGrid
 #pragma kernel gridToParticle
-#pragma use_dxc
 
 float TimeStep;
 float BandWidth;
@@ -19,7 +19,8 @@ RWTexture2D<float2> VelocityMap_RW;
 
 float2 ShallowWaterMax;
 float2 ShallowWaterMin;
-uint2 ShallowWaterRes;
+uint ShallowWaterResX;
+uint ShallowWaterResY;
 float ShallowWaterCellLength;
 SamplerState Sampler_Trilinear_Clamp;
 
@@ -45,63 +46,153 @@ uint HashGridResolutionX;
 uint HashGridResolutionY;
 uint HashGridResolutionZ;
 
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
+{
+    float4 CurrState = StateMap_R[id.xy];
+    uint CellHeightIndex = (CurrState.r + CurrState.g - HashGridMin.y) / HashGridCellLength;
+    int2 ShallowWaterRes = int2(ShallowWaterResX, ShallowWaterResY);
+    int3 HashGridRes = int3(HashGridResolutionX, HashGridResolutionY, HashGridResolutionZ);
+    float3 HashGridMax = HashGridMin + HashGridRes * HashGridCellLength;
+    
+    float Height = 0.0f;
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            int2 AdjCellIndex = id.xy + int2(x, y);
+            if (any(AdjCellIndex < 0) || any(AdjCellIndex >= ShallowWaterRes))
+                continue;
+            
+            float2 AdjCellPos = AdjCellIndex * ShallowWaterCellLength + ShallowWaterMin;
+            if (any(AdjCellPos < HashGridMin.xz) || any(AdjCellIndex >= HashGridMax.xz))
+                continue;
+            
+            uint2 AdjHashCellIndex = (AdjCellPos - HashGridMin.xz) / HashGridCellLength;
+            uint IterationCount = HashGridResolutionY - CellHeightIndex;
+            for (uint i = 0; i < IterationCount; i++)
+            {
+                uint3 UpperCellIndex = uint3(AdjHashCellIndex.x, CellHeightIndex + i, AdjHashCellIndex.y);
+                float3 UpperCellCenterPosition = UpperCellIndex * ShallowWaterCellLength + float3(ShallowWaterCellLength, ShallowWaterCellLength, ShallowWaterCellLength) * 0.5f + float3(ShallowWaterMin.x, 0.0f, ShallowWaterMin.y);
+                uint CellLinerIndex = computeMorton3D(UpperCellIndex);
+        
+                uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];
+                uint CellParticleOffset = HashGridCellParticleOffset_R[CellLinerIndex];
+                float Density = 0.0f;
+                for (int c = 0; c < CellParticleCount; c++)
+                {
+                    float3 Pos = ParticlePosition_R[CellParticleOffset + c];
+                    float Distance = length(UpperCellCenterPosition - Pos);
+                    if (Distance > ShallowWaterCellLength)
+                        continue;
+                    Density += computeCubicKernelW(Distance, ShallowWaterCellLength);
+                }
+                if (Density > 0.5f)
+                    Height += HashGridCellLength;
+            }
+        }
+        ExternHeight_RW[id.xy] = Height;
+    }
+}
+
 groupshared float LocalDensity[SPH_THREAD_NUM * 3 * 3];
 groupshared float LocalCellIndex[SPH_THREAD_NUM];
 [numthreads(SPH_THREAD_NUM, 1, 1)]
 void rasterizeParticleProperty(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
     uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
-    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
-        return;
-    
+    uint ParticleCount = ParticleIndirectArgment_R[ParticleCountArgumentOffset];
     float3 CurrPos = ParticlePosition_R[i];
-    float3 CurrDensity = ParticleDensity_R[i];
-    
-    uint CurrCellIndex = ParticleCellIndex_R[i];
-    
-    uint LaneCount = WaveGetLaneCount();
-    uint CurrLane = WaveGetLaneIndex();
-    uint NextCellIndex = WaveReadLaneAt(CurrCellIndex, CurrLane == LaneCount - 1 ? CurrLane : CurrLane + 1);
-    uint CurrBallot = WaveActiveBallot(CurrCellIndex != NextCellIndex || CurrLane == LaneCount - 1);
-    
-    uint CurrPerfixSumOffset = 0;
-    for (int c = 0; c < CurrLane; c++)
-    {
-        if (CurrBallot % 2 == 0)
-            CurrPerfixSumOffset++;
-        
-        CurrBallot = CurrBallot >> 1;
-    }
-    
-    
-    
+    float CurrDensity = ParticleDensity_R[i];
     float2 CurrPosXZ = float2(CurrPos.x, CurrPos.z);
     int2 CellIndex2D = (CurrPosXZ - ShallowWaterMin) / ShallowWaterCellLength;
+    int2 CellCenterPos2D = CellIndex2D * ShallowWaterCellLength;
+    
+    int2 ShallowWaterRes = int2(ShallowWaterResX, ShallowWaterResY);
+    
     int Count = 0;
+    [unroll]
     for (int x = -1; x <= 1; x++)
     {
         for (int y = -1; y <= 1; y++)
         {
-            int2 AdjCellIndex2D = CellIndex2D = int2(x, y);
-            if (any(AdjCellIndex2D < 0) || any(AdjCellIndex2D >= ShallowWaterRes))
+            int2 AdjCellIndex2D = CellIndex2D + int2(x, y);
+            if (any(AdjCellIndex2D < 0) || any(AdjCellIndex2D >= ShallowWaterRes) || i >= ParticleCount)
             {
                 LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = 0;
                 Count++;
-                continue;
             }
-            
-            float4 ShallowWaterState = StateMap_R[AdjCellIndex2D];
-            float2 AdjCellCenter = ShallowWaterMin + AdjCellIndex2D * ShallowWaterCellLength + float2(ShallowWaterCellLength, ShallowWaterCellLength) * 0.5f;
-            float Weight = computeQuadraticSplineWeight(length(AdjCellCenter - CurrPosXZ));
-            float HybridFactor = 1.0f - min(max(0, CurrPos.y - (ShallowWaterState.r + ShallowWaterState.g)), BandWidth) / BandWidth;
-            LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = Weight * HybridFactor * CurrDensity;
+            else
+            {
+                float4 ShallowWaterState = StateMap_R[(uint2)AdjCellIndex2D];
+                float3 CellCenterPos3D = float3(CellCenterPos2D.x, ShallowWaterState.r + ShallowWaterState.g, CellCenterPos2D.y);
+                float2 AdjCellCenter = ShallowWaterMin + AdjCellIndex2D * ShallowWaterCellLength + float2(ShallowWaterCellLength, ShallowWaterCellLength) * 0.5f;
+                float Weight = computeQuadraticSplineWeight(length(AdjCellCenter - CurrPosXZ));
+                float HybridFactor = 1.0f - min(max(0, CurrPos.y - CellCenterPos3D.y), BandWidth) / BandWidth;
+                LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = HybridFactor * 0.1f;
+                //LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = Weight * /*HybridFactor **/computeCubicKernelW(length(CurrPos - CellCenterPos3D), ShallowWaterCellLength);
+                //LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = Weight * HybridFactor * CurrDensity;
+                Count++;
+            }
         }
     }
     GroupMemoryBarrierWithGroupSync();
     
     //reduce
+    uint CurrCellIndex = ParticleCellIndex_R[i];
     LocalCellIndex[ThreadIdx] = CurrCellIndex;
     GroupMemoryBarrierWithGroupSync();
+    
+    uint PrevCellIndex = ThreadIdx == 0 ? CurrCellIndex : LocalCellIndex[ThreadIdx - 1];
+    if(CurrCellIndex != PrevCellIndex || ThreadIdx == 0)
+    {
+        float SumDensityForAdj[9];
+        int Count = 0;
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                int2 AdjCellIndex2D = CellIndex2D + int2(x, y);
+                if (any(AdjCellIndex2D < 0) || any(AdjCellIndex2D >= ShallowWaterRes))
+                {
+                    SumDensityForAdj[Count] = 0.0f;
+                    Count++;
+                    continue;
+                }
+                else
+                {
+                    uint NextOffset = 0;
+                    uint NextCellIndex = CurrCellIndex;
+                    while (NextCellIndex != CurrCellIndex || ThreadIdx + NextOffset >= SPH_THREAD_NUM)
+                    {
+                        SumDensityForAdj[Count] += LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx + NextOffset];
+                        NextOffset++;
+                        NextCellIndex = LocalCellIndex[ThreadIdx + NextOffset];
+                    }
+                    Count++;
+                }
+            }
+        }
+        
+        Count = 0;
+        for (x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                int2 AdjCellIndex2D = CellIndex2D + int2(x, y);
+                if (any(AdjCellIndex2D < 0) || any(AdjCellIndex2D >= ShallowWaterRes))
+                {
+                    Count++;
+                    continue;
+                }
+                else
+                {
+                    ExternHeight_RW[(uint2)AdjCellIndex2D] += SumDensityForAdj[Count];
+                    Count++;
+                }
+            }
+        }
+    }
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]

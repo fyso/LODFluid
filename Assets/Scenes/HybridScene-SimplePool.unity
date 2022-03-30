@@ -168,8 +168,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   GenerateOnStart: 1
   Size: {x: 128, y: 100, z: 128}
-  ChunksX: 4
-  ChunksZ: 4
+  ChunksX: 1
+  ChunksZ: 1
   LODSettings:
   - Size: 32
     ScreenHeight: 1
@@ -522,14 +522,15 @@ MonoBehaviour:
   HybridBandWidth: 10
   SimulationRangeMin: {x: 0, y: 0, z: 0}
   SimulationRangeRes: {x: 128, y: 128, z: 128}
-  WaterGeneratePosition: {x: 48, y: 64, z: 48}
+  WaterGeneratePosition: {x: 48, y: 30, z: 48}
   WaterGenerateResolution: {x: 64, y: 32, z: 64}
   WaterGenerateInitVelocity: {x: 0, y: 0, z: 0}
+  DrawParticle: 1
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects: []
   TimeStep: 0.05
-  Viscosity: 0.01
-  SurfaceTension: 0.05
+  Viscosity: 0
+  SurfaceTension: 0
   Gravity: 9.8
   MaxParticleCount: 300000
   ParticleRadius: 0.25

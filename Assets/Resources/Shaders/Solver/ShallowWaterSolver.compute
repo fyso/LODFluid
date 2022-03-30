@@ -31,10 +31,10 @@ void FluxComputation(uint3 id : SV_DispatchThreadID)
 {
 	// Sample the heighmap (state map)
     float4 state = HeightMap[id.xy] + float4(0, ExternHeight[id.xy], 0, 0);
-    float4 stateLeft = HeightMap[id.xy + uint2(-1, 0)] + float4(0, ExternHeight[id.xy], 0, 0);
-    float4 stateRight = HeightMap[id.xy + uint2(1, 0)]+ float4(0, ExternHeight[id.xy], 0, 0);
-    float4 stateTop = HeightMap[id.xy + uint2(0, 1)] + float4(0, ExternHeight[id.xy], 0, 0);
-    float4 stateBottom = HeightMap[id.xy + uint2(0, -1)] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateLeft = HeightMap[id.xy + uint2(-1, 0)] + float4(0, ExternHeight[id.xy + uint2(-1, 0)], 0, 0);
+    float4 stateRight = HeightMap[id.xy + uint2(1, 0)] + float4(0, ExternHeight[id.xy + uint2(1, 0)], 0, 0);
+    float4 stateTop = HeightMap[id.xy + uint2(0, 1)] + float4(0, ExternHeight[id.xy + uint2(0, 1)], 0, 0);
+    float4 stateBottom = HeightMap[id.xy + uint2(0, -1)] + float4(0, ExternHeight[id.xy + uint2(0, -1)], 0, 0);
 
     float waterHeight = state.g;
 
@@ -75,7 +75,7 @@ void FluxComputation(uint3 id : SV_DispatchThreadID)
 [numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
 void FluxApply(uint3 id : SV_DispatchThreadID)
 {
-    float4 state = HeightMap[id.xy] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 state = HeightMap[id.xy]/* + float4(0, ExternHeight[id.xy], 0, 0)*/;
     float4 outputFlux = FluxMap[id.xy];
     float4 inputFlux = float4(
 		FluxMap[id.xy + uint2(-1, 0)].g,

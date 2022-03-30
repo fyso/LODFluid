@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/DFSPHScene.unity
-    guid: 9fc0d4010bbf28b4594072e72b8655ab
+    path: Assets/Scenes/HybridScene-SimplePool.unity
+    guid: 4563eea275d388b4da5a9bfb9a1199ad
   m_configObjects: {}
