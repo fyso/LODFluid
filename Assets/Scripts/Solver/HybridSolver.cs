@@ -23,6 +23,7 @@ namespace LODFluid
                 vShallowWater,
                 vDFSPH.Dynamic3DParticleIndirectArgumentBuffer,
                 vDFSPH.HashGridCellParticleCountBuffer,
+                vDFSPH.HashGridCellParticleOffsetBuffer,
                 vDFSPH.HashGridMin,
                 vDFSPH.HashGridCellLength,
                 vDFSPH.HashGridRes,

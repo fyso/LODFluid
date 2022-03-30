@@ -4,29 +4,6 @@
 #pragma kernel FluxComputation
 #pragma kernel FluxApply
 
-// Sampling macro, just to simplify the code a bit
-#define SAMPLE_WITH_OFFSET(tex, x, y) ((tex[id.xy + uint2(x, y)]))
-#define CURRENT_SAMPLE(tex) (tex[id.xy])
-#define LEFT_SAMPLE(tex) (SAMPLE_WITH_OFFSET(tex, -1, 0))
-#define RIGHT_SAMPLE(tex) (SAMPLE_WITH_OFFSET(tex, 1, 0))
-#define TOP_SAMPLE(tex) (SAMPLE_WITH_OFFSET(tex, 0, 1))
-#define BOTTOM_SAMPLE(tex) (SAMPLE_WITH_OFFSET(tex, 0, -1))
-
-// Directional maps channel semantics
-#define LDIR(col) (col.r)
-#define RDIR(col) (col.g)
-#define TDIR(col) (col.b)
-#define BDIR(col) (col.a)
-
-// State channel semantics
-#define TERRAIN_HEIGHT(col) (col.r)
-#define WATER_HEIGHT(col) (col.g)
-#define SEDIMENT(col) (col.b)
-#define HARDNESS(col) (col.a)
-#define FULL_HEIGHT(col) ((TERRAIN_HEIGHT(col) + WATER_HEIGHT(col)))
-
-#define SUM_COMPS(v) ((v.r + v.g + v.b + v.a))
-
 // Heightmap (R - height, G - water height, B - suspended sediment amount, R - Surface hardness)
 RWTexture2D<float4> HeightMap;
 

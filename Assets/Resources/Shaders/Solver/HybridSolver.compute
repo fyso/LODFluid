@@ -1,14 +1,15 @@
 #include "../Common.hlsl"
 
 #pragma enable_d3d11_debug_symbols
-#pragma kernel computeParticleThickOfCell
+#pragma kernel rasterizeParticleProperty
 #pragma kernel particleToGrid
 #pragma kernel gridToParticle
+#pragma use_dxc
 
 float TimeStep;
 float BandWidth;
 
-RWTexture2D<float> ParticleHeight_RW;
+RWTexture2D<float> ExternHeight_RW;
 
 Texture2D<float4> StateMap_R;
 RWTexture2D<float4> StateMap_RW;
@@ -18,10 +19,14 @@ RWTexture2D<float2> VelocityMap_RW;
 
 float2 ShallowWaterMax;
 float2 ShallowWaterMin;
+uint2 ShallowWaterRes;
 float ShallowWaterCellLength;
 SamplerState Sampler_Trilinear_Clamp;
 
 StructuredBuffer<uint> ParticleIndirectArgment_R;
+
+StructuredBuffer<float> ParticleDensity_R;
+StructuredBuffer<float> ParticleCellIndex_R;
 
 StructuredBuffer<float3> ParticlePosition_R;
 RWStructuredBuffer<float3> ParticlePosition_RW;
@@ -40,26 +45,63 @@ uint HashGridResolutionX;
 uint HashGridResolutionY;
 uint HashGridResolutionZ;
 
-[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
-void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
+groupshared float LocalDensity[SPH_THREAD_NUM * 3 * 3];
+groupshared float LocalCellIndex[SPH_THREAD_NUM];
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void rasterizeParticleProperty(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
 {
-    float2 CellGridPos = id.xy * ShallowWaterCellLength + ShallowWaterMin;
-    float4 CurrState = StateMap_RW[id.xy];
-    float3 CellCenterPos = float3(CellGridPos.x, CurrState.r + CurrState.g, CellGridPos.y);
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
     
-    uint3 Cell3DIndex = (CellCenterPos - HashGridMin) / HashGridCellLength;
-    uint IterationCount = HashGridResolutionY - Cell3DIndex.y;
-    float Height = 0.0f;
-    for (int i = 0; i < IterationCount; i++)
+    float3 CurrPos = ParticlePosition_R[i];
+    float3 CurrDensity = ParticleDensity_R[i];
+    
+    uint CurrCellIndex = ParticleCellIndex_R[i];
+    
+    uint LaneCount = WaveGetLaneCount();
+    uint CurrLane = WaveGetLaneIndex();
+    uint NextCellIndex = WaveReadLaneAt(CurrCellIndex, CurrLane == LaneCount - 1 ? CurrLane : CurrLane + 1);
+    uint CurrBallot = WaveActiveBallot(CurrCellIndex != NextCellIndex || CurrLane == LaneCount - 1);
+    
+    uint CurrPerfixSumOffset = 0;
+    for (int c = 0; c < CurrLane; c++)
     {
-        uint CellLinerIndex = computeMorton3D(Cell3DIndex + uint3(0, i, 0));
-        if (CellLinerIndex > HashGridResolutionX * HashGridResolutionY * HashGridResolutionZ)
-            continue;
-        uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];
-        if (CellParticleCount > 7)
-            Height += HashGridCellLength;
+        if (CurrBallot % 2 == 0)
+            CurrPerfixSumOffset++;
+        
+        CurrBallot = CurrBallot >> 1;
     }
-    ParticleHeight_RW[id.xy] = Height;
+    
+    
+    
+    float2 CurrPosXZ = float2(CurrPos.x, CurrPos.z);
+    int2 CellIndex2D = (CurrPosXZ - ShallowWaterMin) / ShallowWaterCellLength;
+    int Count = 0;
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            int2 AdjCellIndex2D = CellIndex2D = int2(x, y);
+            if (any(AdjCellIndex2D < 0) || any(AdjCellIndex2D >= ShallowWaterRes))
+            {
+                LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = 0;
+                Count++;
+                continue;
+            }
+            
+            float4 ShallowWaterState = StateMap_R[AdjCellIndex2D];
+            float2 AdjCellCenter = ShallowWaterMin + AdjCellIndex2D * ShallowWaterCellLength + float2(ShallowWaterCellLength, ShallowWaterCellLength) * 0.5f;
+            float Weight = computeQuadraticSplineWeight(length(AdjCellCenter - CurrPosXZ));
+            float HybridFactor = 1.0f - min(max(0, CurrPos.y - (ShallowWaterState.r + ShallowWaterState.g)), BandWidth) / BandWidth;
+            LocalDensity[SPH_THREAD_NUM * Count + ThreadIdx] = Weight * HybridFactor * CurrDensity;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    //reduce
+    LocalCellIndex[ThreadIdx] = CurrCellIndex;
+    GroupMemoryBarrierWithGroupSync();
 }
 
 [numthreads(SPH_THREAD_NUM, 1, 1)]
@@ -84,7 +126,7 @@ void particleToGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     if (HybridFactor > 0.99f)
     {
         ParticleFilter_RW[i] = 0;
-        StateMap_RW[Index2D] += float4(0.0f, HybridFactor, 0.0f, 0.0f);
+        StateMap_RW[Index2D] += float4(0.0f, HybridFactor, 0.0f, 0.0f) * HashGridCellLength;
     }
 }
 
@@ -106,6 +148,6 @@ void gridToParticle(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
     float2 ShallowWaterVel = VelocityMap_R[Index2D];
     float3 CurrVel = ParticleVelocity_RW[i];
 
-    //CurrVel = float3(CurrVel.x * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.x, CurrVel.y, CurrVel.z * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.y);
+    CurrVel = float3(CurrVel.x * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.x, CurrVel.y, CurrVel.z * (1.0f - HybridFactor) + HybridFactor * ShallowWaterVel.y);
     ParticleVelocity_RW[i] = CurrVel;
 }

@@ -20,7 +20,7 @@ namespace LODFluid
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
-        [Range(0, 0.033f)]
+        [Range(0, 0.05f)]
         public float TimeStep = 0.016666667f;
         [Range(0, 0.03f)]
         public float Viscosity = 0.01f;

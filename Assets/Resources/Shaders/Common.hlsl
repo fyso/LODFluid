@@ -96,4 +96,22 @@ float computeAdhesionKernelW(float vDiatance, float vRadius)
     return Result;
 }
 
+float computeQuadraticSplineWeight(float vDistance)
+{
+    float Weight = 0.0f;
+    if (vDistance >= 0 && vDistance < 0.5f)
+    {
+        Weight = 0.75f - pow(vDistance, 2);
+    }
+    else if (vDistance >= 0.5f && vDistance < 1.5f)
+    {
+        Weight = 0.5f * pow((1.5f - vDistance), 2);
+    }
+    else
+    {
+        Weight = 0.0f;
+    }
+    return Weight;
+}
+
 #endif
