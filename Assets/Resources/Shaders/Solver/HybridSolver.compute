@@ -8,6 +8,7 @@
 
 float TimeStep;
 float BandWidth;
+float ParticleVolume;
 
 RWTexture2D<float> ExternHeight_RW;
 
@@ -55,10 +56,12 @@ void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
     int3 HashGridRes = int3(HashGridResolutionX, HashGridResolutionY, HashGridResolutionZ);
     float3 HashGridMax = HashGridMin + HashGridRes * HashGridCellLength;
     
+    float2 CenterCellPosXZ = id.xy * ShallowWaterCellLength + ShallowWaterMin;
+    
     float Height = 0.0f;
-    for (int x = -1; x <= 1; x++)
+    for (int x = -2; x <= 2; x++)
     {
-        for (int y = -1; y <= 1; y++)
+        for (int y = -2; y <= 2; y++)
         {
             int2 AdjCellIndex = id.xy + int2(x, y);
             if (any(AdjCellIndex < 0) || any(AdjCellIndex >= ShallowWaterRes))
@@ -70,6 +73,7 @@ void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
             
             uint2 AdjHashCellIndex = (AdjCellPos - HashGridMin.xz) / HashGridCellLength;
             uint IterationCount = HashGridResolutionY - CellHeightIndex;
+            uint ContinueEmpty = 0;
             for (uint i = 0; i < IterationCount; i++)
             {
                 uint3 UpperCellIndex = uint3(AdjHashCellIndex.x, CellHeightIndex + i, AdjHashCellIndex.y);
@@ -83,16 +87,23 @@ void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
                 {
                     float3 Pos = ParticlePosition_R[CellParticleOffset + c];
                     float Distance = length(UpperCellCenterPosition - Pos);
-                    if (Distance > ShallowWaterCellLength)
+                    if (Distance > (ShallowWaterCellLength * 1.5f) * sqrt(2.0f) + 1e-6f)
                         continue;
-                    Density += computeCubicKernelW(Distance, ShallowWaterCellLength);
+                    Density += ParticleVolume * computeCubicKernelW(Distance, ShallowWaterCellLength) * computeQuadraticSplineWeight(length(UpperCellCenterPosition.xz - CenterCellPosXZ));
                 }
-                if (Density > 0.5f)
-                    Height += HashGridCellLength;
+                if (Density <= 0.0f)
+                    ContinueEmpty++;
+                else
+                    ContinueEmpty = 0;
+                
+                if(ContinueEmpty > 5)
+                    break;
+                
+                Height += Density * 5.0f;
             }
         }
-        ExternHeight_RW[id.xy] = Height;
     }
+    ExternHeight_RW[id.xy] = Height;
 }
 
 groupshared float LocalDensity[SPH_THREAD_NUM * 3 * 3];

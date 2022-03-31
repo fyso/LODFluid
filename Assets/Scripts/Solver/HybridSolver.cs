@@ -27,7 +27,7 @@ namespace LODFluid
                 vDFSPH.HashGridMin,
                 vDFSPH.HashGridCellLength,
                 vDFSPH.HashGridRes,
-                vTimeStep, vHybridBandWidth, vShallowWater.Min, vShallowWater.Max, vShallowWater.Resolution, vShallowWater.CellLength);
+                vTimeStep, vHybridBandWidth, vDFSPH.ParticleVolume, vShallowWater.Min, vShallowWater.Max, vShallowWater.Resolution, vShallowWater.CellLength);
         }
     }
 }

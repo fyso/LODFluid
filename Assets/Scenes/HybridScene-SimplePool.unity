@@ -522,7 +522,7 @@ MonoBehaviour:
   HybridBandWidth: 10
   SimulationRangeMin: {x: 0, y: 0, z: 0}
   SimulationRangeRes: {x: 128, y: 128, z: 128}
-  WaterGeneratePosition: {x: 48, y: 30, z: 48}
+  WaterGeneratePosition: {x: 48, y: 28, z: 48}
   WaterGenerateResolution: {x: 64, y: 32, z: 64}
   WaterGenerateInitVelocity: {x: 0, y: 0, z: 0}
   DrawParticle: 1

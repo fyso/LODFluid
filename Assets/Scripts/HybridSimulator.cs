@@ -75,7 +75,7 @@ namespace LODFluid
             ShallowWater.Solve(TimeStep, Gravity, PipeArea, PipeLength);
 
             //SPH Step
-            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, 0.0f);
+            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
 
             //Hybrid step
             Hybrid.CoupleParticleAndGrid(DFSPH, ShallowWater, HybridBandWidth * CellLength, TimeStep);

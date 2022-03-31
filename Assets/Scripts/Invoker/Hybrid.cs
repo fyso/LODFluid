@@ -28,7 +28,7 @@ namespace LODFluid
             ComputeBuffer vHashGridCellParticleCount,
             ComputeBuffer vHashGridCellParticleOffset,
             Vector3 vHashGridMin, float HashGridCellLength, Vector3Int vHashGridResolution,
-            float vTimeStep, float vBandWidth, Vector2 vShallowWaterMin, Vector2 vShallowWaterMax, Vector2Int vShallowWaterRes, float vShallowWaterCellLength)
+            float vTimeStep, float vBandWidth, float vParticleVolume, Vector2 vShallowWaterMin, Vector2 vShallowWaterMax, Vector2Int vShallowWaterRes, float vShallowWaterCellLength)
         {
             RenderTexture rt = UnityEngine.RenderTexture.active;
             UnityEngine.RenderTexture.active = vShallowWaterSolver.ExternHeightTexture;
@@ -37,6 +37,7 @@ namespace LODFluid
 
             HybridSolverCS.SetFloat("TimeStep", vTimeStep);
             HybridSolverCS.SetFloat("BandWidth", vBandWidth);
+            HybridSolverCS.SetFloat("ParticleVolume", vParticleVolume);
             HybridSolverCS.SetFloat("ShallowWaterCellLength", vShallowWaterCellLength);
             HybridSolverCS.SetVector("ShallowWaterMin", vShallowWaterMin);
             HybridSolverCS.SetVector("ShallowWaterMax", vShallowWaterMax);
