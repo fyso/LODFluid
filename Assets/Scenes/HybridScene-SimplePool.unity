@@ -519,18 +519,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4cb6e946ca77b7e4184c730805ae803f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  HybridBandWidth: 10
+  HybridBandWidth: 2
   SimulationRangeMin: {x: 0, y: 0, z: 0}
   SimulationRangeRes: {x: 128, y: 128, z: 128}
-  WaterGeneratePosition: {x: 48, y: 28, z: 48}
+  WaterGeneratePosition: {x: 48, y: 30, z: 48}
   WaterGenerateResolution: {x: 64, y: 32, z: 64}
   WaterGenerateInitVelocity: {x: 0, y: 0, z: 0}
   DrawParticle: 1
   SPHVisualMaterial: {fileID: 2100000, guid: cf9b8969db227a64dbc9c75547c92c6a, type: 2}
   BoundaryObjects: []
   TimeStep: 0.05
-  Viscosity: 0
-  SurfaceTension: 0
+  Viscosity: 0.0148
+  SurfaceTension: 0.0497
   Gravity: 9.8
   MaxParticleCount: 300000
   ParticleRadius: 0.25

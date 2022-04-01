@@ -193,5 +193,13 @@ namespace LODFluid
                 );
             Profiler.EndSample();
         }
+
+        public void Advect(float vTimeStep)
+        {
+            DivergenceFreeSPHTool.Advect(
+                    ref Dynamic3DParticle,
+                    Dynamic3DParticleIndirectArgumentBuffer,
+                    vTimeStep);
+        }
     }
 }

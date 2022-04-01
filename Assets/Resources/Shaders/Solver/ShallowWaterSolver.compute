@@ -13,8 +13,9 @@ RWTexture2D<float2> VelocityMap;
 // Water Flux field (R - left, G - right, B - top, A - bottom)
 RWTexture2D<float4> FluxMap;
 
-//Height From Particle
+//Hybrid Map
 RWTexture2D<float> ExternHeight;
+RWTexture2D<float> HeightChange;
 
 // Fluid simulation properties
 uint _Width;
@@ -92,6 +93,7 @@ void FluxApply(uint3 id : SV_DispatchThreadID)
 	state.g += _TimeDelta * volumeDelta / (_CellSize.x * _CellSize.y);
 
 	// Write new state to the HeightMap
+    HeightChange[id.xy] = HeightMap[id.xy].g - state.g;
 	HeightMap[id.xy] = state;
 
 	// Compute new velocity from flux to the VelocityMap

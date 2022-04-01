@@ -34,6 +34,29 @@ namespace LODFluid
 
             BackParticleCache = new ParticleBuffer(vMaxParticleCount);
         }
+        public void Advect(
+            ref ParticleBuffer voTarget,
+            ComputeBuffer vTargetParticleIndirectArgment, 
+            float vTimeStep)
+        {
+            DivergenceFreeSPHSloverCS.SetFloat("TimeStep", vTimeStep);
+
+            ///更新位置并Swap ParticleBuffer
+            Profiler.BeginSample("Advect and swap particle buffer");
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "TargetParticleIndirectArgment_R", vTargetParticleIndirectArgment);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticlePosition_R", voTarget.ParticlePositionBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticleVelocity_R", voTarget.ParticleVelocityBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticleFilter_R", voTarget.ParticleFilterBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticlePosition_RW", BackParticleCache.ParticlePositionBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticleVelocity_RW", BackParticleCache.ParticleVelocityBuffer);
+            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticleFilter_RW", BackParticleCache.ParticleFilterBuffer);
+            DivergenceFreeSPHSloverCS.DispatchIndirect(advectAndSwapParticleBufferKernel, vTargetParticleIndirectArgment);
+            Profiler.EndSample();
+
+            Common.SwapComputeBuffer(ref BackParticleCache.ParticlePositionBuffer, ref voTarget.ParticlePositionBuffer);
+            Common.SwapComputeBuffer(ref BackParticleCache.ParticleVelocityBuffer, ref voTarget.ParticleVelocityBuffer);
+            Common.SwapComputeBuffer(ref BackParticleCache.ParticleFilterBuffer, ref voTarget.ParticleFilterBuffer);
+        }
 
         public void Slove(
             ref ParticleBuffer voTarget,
@@ -162,22 +185,6 @@ namespace LODFluid
                 Profiler.EndSample();
             }
             Profiler.EndSample();
-
-            ///更新位置并Swap ParticleBuffer
-            Profiler.BeginSample("Advect and swap particle buffer");
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "TargetParticleIndirectArgment_R", vTargetParticleIndirectArgment);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticlePosition_R", voTarget.ParticlePositionBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticleVelocity_R", voTarget.ParticleVelocityBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "BackParticleFilter_R", voTarget.ParticleFilterBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticlePosition_RW", BackParticleCache.ParticlePositionBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticleVelocity_RW", BackParticleCache.ParticleVelocityBuffer);
-            DivergenceFreeSPHSloverCS.SetBuffer(advectAndSwapParticleBufferKernel, "FrontParticleFilter_RW", BackParticleCache.ParticleFilterBuffer);
-            DivergenceFreeSPHSloverCS.DispatchIndirect(advectAndSwapParticleBufferKernel, vTargetParticleIndirectArgment);
-            Profiler.EndSample();
-
-            Common.SwapComputeBuffer(ref BackParticleCache.ParticlePositionBuffer, ref voTarget.ParticlePositionBuffer);
-            Common.SwapComputeBuffer(ref BackParticleCache.ParticleVelocityBuffer, ref voTarget.ParticleVelocityBuffer);
-            Common.SwapComputeBuffer(ref BackParticleCache.ParticleFilterBuffer, ref voTarget.ParticleFilterBuffer);
         }
     }
 }

@@ -79,6 +79,7 @@ namespace LODFluid
         private void FixedUpdate()
         {
             DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
+            DFSPH.Advect(TimeStep);
         }
 
         void OnRenderObject()

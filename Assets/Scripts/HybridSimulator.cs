@@ -8,7 +8,7 @@ namespace LODFluid
     public class HybridSimulator : MonoBehaviour
     {
         [Header("Hybrid")]
-        [Range(5, 10)]
+        [Range(1, 5)]
         public uint HybridBandWidth = 5;
 
         [Header("Divergence-free SPH")]
@@ -21,7 +21,7 @@ namespace LODFluid
         public Material SPHVisualMaterial;
         public List<GameObject> BoundaryObjects;
 
-        [Range(0, 0.05f)]
+        [Range(0.005f, 0.05f)]
         public float TimeStep = 0.016666667f;
         [Range(0, 0.03f)]
         public float Viscosity = 0.01f;
@@ -71,14 +71,10 @@ namespace LODFluid
 
         private void FixedUpdate()
         {
-            //Shallow Water Step
             ShallowWater.Solve(TimeStep, Gravity, PipeArea, PipeLength);
-
-            //SPH Step
-            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
-
-            //Hybrid step
+            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, 0.0f);
             Hybrid.CoupleParticleAndGrid(DFSPH, ShallowWater, HybridBandWidth * CellLength, TimeStep);
+            DFSPH.Advect(TimeStep);
         }
 
         private void OnDrawGizmos()

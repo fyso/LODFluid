@@ -20,6 +20,7 @@ namespace LODFluid
         public RenderTexture VelocityTexture;
 
         public RenderTexture ExternHeightTexture;
+        public RenderTexture HeightChangeTexture;
 
         public Material InitHeightMaterial;
 
@@ -70,6 +71,13 @@ namespace LODFluid
                 wrapMode = TextureWrapMode.Clamp
             };
 
+            HeightChangeTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.RFloat)
+            {
+                enableRandomWrite = true,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
             Camera.main.depthTextureMode = DepthTextureMode.Depth;
             if (vTerrianHeightMap != null)
             {
@@ -92,6 +100,7 @@ namespace LODFluid
                 VelocityTexture,
                 WaterOutFluxTexture,
                 ExternHeightTexture,
+                HeightChangeTexture,
                 Resolution, vTimeStep, vGravity, PipeArea, vPipeLength, CellLength);
         }
 

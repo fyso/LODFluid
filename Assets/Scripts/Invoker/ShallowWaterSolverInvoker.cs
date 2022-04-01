@@ -24,6 +24,7 @@ namespace LODFluid
             RenderTexture vVelocityTexture, 
             RenderTexture vFluxMap, 
             RenderTexture vExternHeight, 
+            RenderTexture vHeightChange, 
             Vector2Int vReslotion,
             float vTimeDelta,
             float vGravity,
@@ -50,7 +51,7 @@ namespace LODFluid
             ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "HeightMap", vStateTexture);
             ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "VelocityMap", vVelocityTexture);
             ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "FluxMap", vFluxMap);
-            ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "ExternHeight", vExternHeight);
+            ShallowWaterSolverCS.SetTexture(fluxApplyKernel, "HeightChange", vHeightChange);
             ShallowWaterSolverCS.Dispatch(fluxApplyKernel, (int)Mathf.Ceil((float)vReslotion.x / ThreadGroupX), (int)Mathf.Ceil((float)vReslotion.y / ThreadGroupY), 1);
         }
     }
