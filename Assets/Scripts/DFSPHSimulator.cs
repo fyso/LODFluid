@@ -74,12 +74,13 @@ namespace LODFluid
                 DFSPH.Dynamic3DParticleIndirectArgumentBuffer.GetData(ArgumentCPU);
                 Debug.Log(ArgumentCPU[4]);
             }
+
+            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
+            DFSPH.Advect(TimeStep);
         }
 
         private void FixedUpdate()
         {
-            DFSPH.Solve(DivergenceIterationCount, PressureIterationCount, TimeStep, Viscosity, SurfaceTension, Gravity);
-            DFSPH.Advect(TimeStep);
         }
 
         void OnRenderObject()

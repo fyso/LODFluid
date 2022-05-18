@@ -191,7 +191,6 @@ namespace LODFluid
                     vTimeStep, vViscosity, vSurfaceTension, vGravity,
                     DivergenceIterationCount, PressureIterationCount
                 );
-            Profiler.EndSample();
         }
 
         public void Advect(float vTimeStep)
