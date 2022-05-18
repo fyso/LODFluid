@@ -1,0 +1,39 @@
+#include "../Common.hlsl"
+#define BUFFER_CLEAR_THRED_NUM 512
+#pragma kernel clearUIntBufferWithZero
+#pragma kernel clearUIntBufferWithSequence
+#pragma kernel clearFloatBufferWithZero
+
+uniform uint BufferSize;
+
+RWStructuredBuffer<uint> TargetUIntBuffer_RW;
+[numthreads(BUFFER_CLEAR_THRED_NUM, 1, 1)]
+void clearUIntBufferWithZero(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * BUFFER_CLEAR_THRED_NUM;
+    if (i >= BufferSize)
+        return;
+    
+    TargetUIntBuffer_RW[i] = 0;
+}
+
+[numthreads(BUFFER_CLEAR_THRED_NUM, 1, 1)]
+void clearUIntBufferWithSequence(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * BUFFER_CLEAR_THRED_NUM;
+    if (i >= BufferSize)
+        return;
+    
+    TargetUIntBuffer_RW[i] = i;
+}
+
+RWStructuredBuffer<float> TargetFloatBuffer_RW;
+[numthreads(BUFFER_CLEAR_THRED_NUM, 1, 1)]
+void clearFloatBufferWithZero(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * BUFFER_CLEAR_THRED_NUM;
+    if (i >= BufferSize)
+        return;
+    
+    TargetFloatBuffer_RW[i] = 0;
+}

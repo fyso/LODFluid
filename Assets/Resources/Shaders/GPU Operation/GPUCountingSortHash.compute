@@ -1,0 +1,65 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel insertParticleIntoHashGrid
+#pragma kernel countingSortFull
+
+float3 HashGridMin;
+float HashGridCellLength;
+
+StructuredBuffer<uint> ParticleIndrectArgment_R;
+
+StructuredBuffer<float3> ParticlePosition_R;
+StructuredBuffer<float3> ParticleVelocity_R;
+StructuredBuffer<uint> ParticleFilter_R;
+StructuredBuffer<uint> ParticleMortonCode_R;
+StructuredBuffer<uint> ParticleDensity_R;
+
+RWStructuredBuffer<float3> SortedParticlePosition_RW;
+RWStructuredBuffer<float3> SortedParticleVelocity_RW;
+RWStructuredBuffer<uint> SortedParticleFilter_RW;
+RWStructuredBuffer<uint> SortedParticleMortonCode_RW;
+RWStructuredBuffer<uint> SortedParticleDensity_RW;
+
+StructuredBuffer<uint> ParticleInnerSortIndex_R;
+RWStructuredBuffer<uint> ParticleInnerSortIndex_RW;
+
+StructuredBuffer<uint> ParticleCellIndex_R;
+RWStructuredBuffer<uint> ParticleCellIndex_RW;
+
+StructuredBuffer<uint> HashGridCellParticleOffset_R;
+RWStructuredBuffer<uint> HashGridCellParticleCount_RW;
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void insertParticleIntoHashGrid(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 Postion = ParticlePosition_R[i];
+    uint3 Cell3DIndex = uint3((Postion - HashGridMin) / HashGridCellLength);
+    uint CellLinerIndex = computeMorton3D(Cell3DIndex);
+    ParticleCellIndex_RW[i] = CellLinerIndex;
+    uint OriginValue;
+    InterlockedAdd(HashGridCellParticleCount_RW[CellLinerIndex], 1, OriginValue);
+    ParticleInnerSortIndex_RW[i] = OriginValue;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void countingSortFull(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndrectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    uint CellLinerIndex = ParticleCellIndex_R[i];
+    uint Offset = CellLinerIndex == 0 ? 0 : HashGridCellParticleOffset_R[CellLinerIndex - 1];
+    uint Index = ParticleInnerSortIndex_R[i];
+    uint SortedIndex = Offset + Index;
+    SortedParticlePosition_RW[SortedIndex] = ParticlePosition_R[i];
+    SortedParticleVelocity_RW[SortedIndex] = ParticleVelocity_R[i];
+    SortedParticleFilter_RW[SortedIndex] = ParticleFilter_R[i];
+    SortedParticleMortonCode_RW[SortedIndex] = ParticleMortonCode_R[i];
+    SortedParticleDensity_RW[SortedIndex] = ParticleDensity_R[i];
+}

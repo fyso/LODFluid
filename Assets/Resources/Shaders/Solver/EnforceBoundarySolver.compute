@@ -1,0 +1,58 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel solveBoundary
+
+Texture3D<float> SignedDistance_R;
+
+StructuredBuffer<uint> TargetParticleIndirectArgment_R;
+
+RWStructuredBuffer<float3> TargetParticlePosition_RW;
+RWStructuredBuffer<float3> TargetParticleVelocity_RW;
+RWStructuredBuffer<uint> TargetParticleFilter_RW;
+
+SamplerState Sampler_Trilinear_Clamp_SignedDistance;
+
+uniform float3 SDFDomainMin;
+uniform float3 SDFCellSize;
+uniform uint3 SDFResolution;
+
+uniform float3 Translate;
+uniform float4x4 Rotation;
+uniform float4x4 InvRotation;
+
+uniform float3 BoundaryVel;
+uniform float ParticleRadius;
+
+float3 estimateNormal(float3 p)
+{
+    const float h = 1.0f / (float3) SDFResolution; // replace by an appropriate value
+    float Left = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(-h, 0, 0), 0);
+    float Right = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(h, 0, 0), 0);
+    float Down = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(0, -h, 0), 0);
+    float Up = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(0, h, 0), 0);
+    float Back = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(0, 0, -h), 0);
+    float Front = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, p + float3(0, 0, h), 0);
+    return normalize(float3(Right - Left, Up - Down, Front - Back));
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void solveBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 Pos = TargetParticlePosition_RW[i];
+    float3 ObjectPos = mul(InvRotation, float4(Pos - Translate, 1.0f)).xyz;
+    
+    //texture boundary info
+    float3 Offset = ObjectPos - SDFDomainMin;
+    float3 UVCoord = Offset / SDFCellSize / (float3) SDFResolution;
+    float Dist = SignedDistance_R.SampleLevel(Sampler_Trilinear_Clamp_SignedDistance, UVCoord, 0);
+    float3 Normal = estimateNormal(UVCoord);
+    
+    //apply Boundary effect
+    if (Dist <= 0.0f)
+        TargetParticleFilter_RW[i] = 0;
+}

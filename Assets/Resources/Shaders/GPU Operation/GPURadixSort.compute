@@ -1,0 +1,161 @@
+#include "../Common.hlsl"
+
+#define RADIX_SORT_THREAD_NUM 512
+
+#pragma kernel fourWayRadixSort
+#pragma kernel shuffleResult
+
+uint ShiftWidth;
+
+StructuredBuffer<uint> IndrectArgment_R;
+
+RWStructuredBuffer<uint> OldKey_RW;
+RWStructuredBuffer<uint> OldValue_RW;
+RWStructuredBuffer<uint> NewKey_RW;
+RWStructuredBuffer<uint> NewValue_RW;
+
+StructuredBuffer<uint> PrefixSum_R;
+RWStructuredBuffer<uint> PrefixSum_RW;
+
+StructuredBuffer<uint> BlockSum_R;
+RWStructuredBuffer<uint> BlockSum_RW;
+
+groupshared uint LocalKey[RADIX_SORT_THREAD_NUM];
+groupshared uint LocalValue[RADIX_SORT_THREAD_NUM];
+groupshared uint LocalMask[RADIX_SORT_THREAD_NUM + 1];
+groupshared uint LocalMergeScanMask[RADIX_SORT_THREAD_NUM];
+groupshared uint LocalMaskSum[4];
+groupshared uint LocalScanMaskSum[4];
+
+[numthreads(RADIX_SORT_THREAD_NUM, 1, 1)]
+void fourWayRadixSort(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * RADIX_SORT_THREAD_NUM;
+    uint ElementCount = IndrectArgment_R[ParticleCountArgumentOffset];
+    uint GroupCount = IndrectArgment_R[ParticleXGridCountArgumentOffset];
+    
+    uint CurrKey = 0;
+    uint CurrValue = 0;
+    if (i < ElementCount)
+    {
+        CurrKey = OldKey_RW[i];
+        CurrValue = OldValue_RW[i];
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    uint Current2Bit = (CurrKey >> ShiftWidth) & 3;
+    
+    [unroll]
+    for (int CurrBitBucket = 0; CurrBitBucket < 4; CurrBitBucket++)
+    {
+        LocalMask[ThreadIdx] = 0;
+        if (ThreadIdx == 0)
+            LocalMask[RADIX_SORT_THREAD_NUM] = 0;
+        GroupMemoryBarrierWithGroupSync();
+        
+        bool Curr2BitEqualsCurrBitBucket = false;
+        if (i < ElementCount)
+        {
+            Curr2BitEqualsCurrBitBucket = Current2Bit == CurrBitBucket;
+            LocalMask[ThreadIdx] = Curr2BitEqualsCurrBitBucket;
+        }
+        GroupMemoryBarrierWithGroupSync();
+
+        //Hillis-Steele Scan in block
+        int Partner = 0;
+        uint Sum = 0;
+        [unroll]
+        for (int k = 0; k < log2(RADIX_SORT_THREAD_NUM); k++)
+        {
+            Partner = ThreadIdx - (1 << k);
+            if (Partner >= 0)
+            {
+                Sum = LocalMask[ThreadIdx] + LocalMask[Partner];
+            }
+            else
+            {
+                Sum = LocalMask[ThreadIdx];
+            }
+            GroupMemoryBarrierWithGroupSync();
+            
+            LocalMask[ThreadIdx] = Sum;
+            GroupMemoryBarrierWithGroupSync();
+        }
+        
+        //Shift elements to a exclusive scan
+        uint CpyValue = LocalMask[ThreadIdx];
+        GroupMemoryBarrierWithGroupSync();
+        LocalMask[ThreadIdx + 1] = CpyValue;
+        GroupMemoryBarrierWithGroupSync();
+        if (ThreadIdx == 0)
+        {
+            LocalMask[0] = 0;
+            
+            uint TotalSum = LocalMask[RADIX_SORT_THREAD_NUM];
+            LocalMaskSum[CurrBitBucket] = TotalSum;
+            BlockSum_RW[CurrBitBucket * GroupCount + GroupIdx] = TotalSum;
+        }
+        GroupMemoryBarrierWithGroupSync();
+        
+        //Merge 4-way mask 
+        if (Curr2BitEqualsCurrBitBucket && i < ElementCount)
+        {
+            LocalMergeScanMask[ThreadIdx] = LocalMask[ThreadIdx];
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+    
+    if (ThreadIdx == 0)
+    {
+        uint Sum = 0;
+        for (int c = 0; c < 4; c++)
+        {
+            LocalScanMaskSum[c] = Sum;
+            Sum += LocalMaskSum[c];
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    uint PrefixSum = LocalMergeScanMask[ThreadIdx];
+    uint NewIndex = PrefixSum + LocalScanMaskSum[Current2Bit];
+    GroupMemoryBarrierWithGroupSync();
+    
+    //to shared memory
+    if (i < ElementCount)
+    {
+        LocalKey[NewIndex] = CurrKey;
+        LocalValue[NewIndex] = CurrValue;
+        LocalMergeScanMask[NewIndex] = PrefixSum;
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    //push to graphic memory
+    if (i >= ElementCount)
+        return;
+    
+    OldKey_RW[i] = LocalKey[ThreadIdx];
+    OldValue_RW[i] = LocalValue[ThreadIdx];
+    PrefixSum_RW[i] = LocalMergeScanMask[ThreadIdx];
+}
+
+StructuredBuffer<uint> ScanBlockSum_R;
+[numthreads(RADIX_SORT_THREAD_NUM, 1, 1)]
+void shuffleResult(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * RADIX_SORT_THREAD_NUM;
+    uint ElementCount = IndrectArgment_R[ParticleCountArgumentOffset];
+    uint GroupCount = IndrectArgment_R[ParticleXGridCountArgumentOffset];
+    if (i >= ElementCount)
+        return;
+    
+    uint CurrKey = OldKey_RW[i];
+    uint CurrValue = OldValue_RW[i];
+    
+    uint Current2Bit = (CurrKey >> ShiftWidth) & 3;
+    uint Index = Current2Bit * GroupCount + GroupIdx;
+    uint ScanBlockSumOffset = Index == 0 ? 0 : ScanBlockSum_R[Index - 1];
+    uint NewIndex = PrefixSum_R[i] + ScanBlockSumOffset;
+    
+    NewKey_RW[NewIndex] = CurrKey;
+    NewValue_RW[NewIndex] = CurrValue;
+}

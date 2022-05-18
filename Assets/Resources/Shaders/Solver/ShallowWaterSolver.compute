@@ -1,0 +1,103 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel FluxComputation
+#pragma kernel FluxApply
+
+// Heightmap (R - height, G - water height, B - suspended sediment amount, R - Surface hardness)
+RWTexture2D<float4> HeightMap;
+
+// Velocity field (R - velocity x, G - velocity y)
+RWTexture2D<float2> VelocityMap;
+
+// Water Flux field (R - left, G - right, B - top, A - bottom)
+RWTexture2D<float4> FluxMap;
+
+//Hybrid Map
+RWTexture2D<float> ExternHeight;
+RWTexture2D<float> HeightChange;
+
+// Fluid simulation properties
+uint _Width;
+uint _Height;
+float _TimeDelta;
+float _Gravity;
+float2 _CellSize;
+float _PipeArea;
+float _PipeLength;
+
+/* Pass 1. Flux field computation */
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void FluxComputation(uint3 id : SV_DispatchThreadID)
+{
+	// Sample the heighmap (state map)
+    float4 state = HeightMap[id.xy] + float4(0, ExternHeight[id.xy], 0, 0);
+    float4 stateLeft = HeightMap[id.xy + uint2(-1, 0)] + float4(0, ExternHeight[id.xy + uint2(-1, 0)], 0, 0);
+    float4 stateRight = HeightMap[id.xy + uint2(1, 0)] + float4(0, ExternHeight[id.xy + uint2(1, 0)], 0, 0);
+    float4 stateTop = HeightMap[id.xy + uint2(0, 1)] + float4(0, ExternHeight[id.xy + uint2(0, 1)], 0, 0);
+    float4 stateBottom = HeightMap[id.xy + uint2(0, -1)] + float4(0, ExternHeight[id.xy + uint2(0, -1)], 0, 0);
+
+    float waterHeight = state.g;
+
+	// Flow simulation using shallow-water model. Computation of the velocity field and water height changes.
+	// Sample flux
+    float4 outputFlux = FluxMap[id.xy];
+
+	// Overall height difference in each direction
+    float4 heightDifference = (state.r + state.g) - float4(
+		(stateLeft.r + stateLeft.g),
+		(stateRight.r + stateRight.g),
+		(stateTop.r + stateTop.g),
+		(stateBottom.r + stateBottom.g));
+
+	// Output flux	
+    outputFlux = max(0, outputFlux + _TimeDelta * _Gravity * _PipeArea * heightDifference / _PipeLength);
+
+	/*
+		Rescale flux
+		The total outflow should not exceed the total amount
+		of the water in the given cell.If the calculated value is
+		larger than the current amount in the given cell, then flux will
+		be scaled down with an appropriate factor
+	*/
+    outputFlux *= min(1, waterHeight * _CellSize.x * _CellSize.y / ((outputFlux.r + outputFlux.g + outputFlux.b + outputFlux.a) * _TimeDelta));
+
+	// Boundaries (uncomment thisif you want water to bounce of boundaries)						
+    if (id.x == 0) outputFlux.r = 0;
+    if (id.y == 0) outputFlux.a = 0;
+    if (id.x == _Width - 1) outputFlux.g = 0;
+    if (id.y == _Height - 1) outputFlux.b = 0;
+
+	// Write new flux to the FluxMap
+	FluxMap[id.xy] = max(0, outputFlux);
+}
+
+/* Pass 2. Applying fluxes to the actual cells and changing weter height */
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void FluxApply(uint3 id : SV_DispatchThreadID)
+{
+    float4 state = HeightMap[id.xy]/* + float4(0, ExternHeight[id.xy], 0, 0)*/;
+    float4 outputFlux = FluxMap[id.xy];
+    float4 inputFlux = float4(
+		FluxMap[id.xy + uint2(-1, 0)].g,
+		FluxMap[id.xy + uint2(1, 0)].r,
+		FluxMap[id.xy + uint2(0, 1)].a,
+		FluxMap[id.xy + uint2(0, -1)].b);
+    float waterHeightBefore = state.g;
+
+	// Water surface and velocity field update
+	// volume is changing by amount on incoming fluid volume minus outgoing
+    float volumeDelta = (inputFlux.r + inputFlux.g + inputFlux.b + inputFlux.a) - (outputFlux.r + outputFlux.g + outputFlux.b + outputFlux.a);
+
+	// Then, we update the water height in the current (x, y) cell:
+	state.g += _TimeDelta * volumeDelta / (_CellSize.x * _CellSize.y);
+
+	// Write new state to the HeightMap
+    HeightChange[id.xy] = HeightMap[id.xy].g - state.g;
+	HeightMap[id.xy] = state;
+
+	// Compute new velocity from flux to the VelocityMap
+	VelocityMap[id.xy] = float2(
+		0.5f * (inputFlux.r - outputFlux.r + outputFlux.g - inputFlux.g),
+		0.5f * (inputFlux.a - outputFlux.a + outputFlux.b - inputFlux.b));
+}

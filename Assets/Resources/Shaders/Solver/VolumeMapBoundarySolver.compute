@@ -1,0 +1,940 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel generateVolumeMap
+#pragma kernel generateSignedDistanceMap
+#pragma kernel queryCloestPointAndVolume
+#pragma kernel clearClosestPointAndVolume
+
+StructuredBuffer<uint> TargetParticleIndirectArgment_R;
+RWStructuredBuffer<float3> TargetParticlePosition_RW;
+RWStructuredBuffer<float3> BoundaryVelocity_RW;
+RWStructuredBuffer<float3> ClosestPoint_RW;
+RWStructuredBuffer<float> Volume_RW;
+RWStructuredBuffer<float> Distance_RW;
+
+SamplerState Sampler_Trilinear_Clamp;
+
+Texture3D<float> SignedDistanceTexture_R;
+float3 SDFDomainMin;
+float3 SDFCellSize;
+uint SDFResolutionX;
+uint SDFResolutionY;
+uint SDFResolutionZ;
+
+RWStructuredBuffer<float> SignedDistanceArray_RW;
+RWStructuredBuffer<float> VolumeArray_RW;
+
+uniform float3 VolumeMapDomainMin;
+uniform float VolumeMapCellSize;
+uint VolumeMapResolutionX;
+uint VolumeMapResolutionY;
+uint VolumeMapResolutionZ;
+
+uint VolumeMapTotalNodeCount;
+uint VolumeMapVertexNodeCount;
+uint VolumeMapXEdgeNodeCount;
+uint VolumeMapYEdgeNodeCount;
+uint VolumeMapZEdgeNodeCount;
+
+float3 Translate;
+float4x4 Rotation;
+float4x4 InvRotation;
+float3 BoundaryVelocity;
+
+float gaussian_weights_1_30[16];
+float gaussian_abscissae_1_30[16];
+
+float SearchRadius;
+float CubicZero;
+float ParticleRadius;
+
+float3 indexToNodePosition(uint vIndex)
+{
+    float3 Pos = float3(0, 0, 0);
+    
+    uint3 ijk = uint3(0, 0, 0);
+    if (vIndex < VolumeMapVertexNodeCount)
+    {
+        ijk.z = vIndex / ((VolumeMapResolutionY + 1) * (VolumeMapResolutionX + 1));
+        uint temp = vIndex % ((VolumeMapResolutionY + 1) * (VolumeMapResolutionX + 1));
+        ijk.y = temp / (VolumeMapResolutionX + 1);
+        ijk.x = temp % (VolumeMapResolutionX + 1);
+
+        Pos = VolumeMapDomainMin + VolumeMapCellSize * float3(ijk);
+    }
+    else if (vIndex < VolumeMapVertexNodeCount + 2 * VolumeMapXEdgeNodeCount)
+    {
+        vIndex -= VolumeMapVertexNodeCount;
+        uint e_ind = vIndex / 2;
+        ijk.z = e_ind / ((VolumeMapResolutionY + 1) * VolumeMapResolutionX);
+        uint temp = e_ind % ((VolumeMapResolutionY + 1) * VolumeMapResolutionX);
+        ijk.y = temp / VolumeMapResolutionX;
+        ijk.x = temp % VolumeMapResolutionX;
+
+        Pos = VolumeMapDomainMin + VolumeMapCellSize * float3(ijk);
+        Pos.x += (1.0 + float(vIndex % 2)) / 3.0 * VolumeMapCellSize;
+    }
+    else if (vIndex < VolumeMapVertexNodeCount + 2 * (VolumeMapXEdgeNodeCount + VolumeMapYEdgeNodeCount))
+    {
+        vIndex -= (VolumeMapVertexNodeCount + 2 * VolumeMapXEdgeNodeCount);
+        uint e_ind = vIndex / 2;
+        ijk.x = e_ind / ((VolumeMapResolutionZ + 1) * VolumeMapResolutionY);
+        uint temp = e_ind % ((VolumeMapResolutionZ + 1) * VolumeMapResolutionY);
+        ijk.z = temp / VolumeMapResolutionY;
+        ijk.y = temp % VolumeMapResolutionY;
+
+        Pos = VolumeMapDomainMin + VolumeMapCellSize * float3(ijk);
+        Pos.y += (1.0 + (float) (vIndex % 2)) / 3.0 * VolumeMapCellSize;
+    }
+    else
+    {
+        vIndex -= (VolumeMapVertexNodeCount + 2 * (VolumeMapXEdgeNodeCount + VolumeMapYEdgeNodeCount));
+        uint e_ind = vIndex / 2;
+        ijk.y = e_ind / ((VolumeMapResolutionX + 1) * VolumeMapResolutionZ);
+        uint temp = e_ind % ((VolumeMapResolutionX + 1) * VolumeMapResolutionZ);
+        ijk.x = temp / VolumeMapResolutionZ;
+        ijk.z = temp % VolumeMapResolutionZ;
+        
+        Pos = VolumeMapDomainMin + VolumeMapCellSize * float3(ijk);
+        Pos.z += (1.0 + (float) (vIndex % 2)) / 3.0 * VolumeMapCellSize;
+    }
+    return Pos;
+}
+
+uint3 getCell3Dindex(float3 vPos)
+{
+    int3 Cell3dIndex = (vPos - VolumeMapDomainMin) / VolumeMapCellSize;
+    
+    if (Cell3dIndex.x >= VolumeMapResolutionX)
+        Cell3dIndex.x = VolumeMapResolutionX - 1;
+    if (Cell3dIndex.y >= VolumeMapResolutionY)
+        Cell3dIndex.y = VolumeMapResolutionY - 1;
+    if (Cell3dIndex.z >= VolumeMapResolutionZ)
+        Cell3dIndex.z = VolumeMapResolutionZ - 1;
+    
+    if (Cell3dIndex.x < 0)
+        Cell3dIndex.x = 0;
+    if (Cell3dIndex.y < 0)
+        Cell3dIndex.y = 0;
+    if (Cell3dIndex.z < 0)
+        Cell3dIndex.z = 0;
+    
+    return Cell3dIndex;
+}
+
+float interpolateScalar(RWStructuredBuffer<float> vCubicMap, float3 vSamplePos)
+{
+    float InterpolateResult = 0.0f;
+    
+    float3 VolumeMapDomainMax = VolumeMapDomainMin + float3(VolumeMapResolutionX, VolumeMapResolutionY, VolumeMapResolutionZ) * VolumeMapCellSize;
+    if (vSamplePos.x < VolumeMapDomainMin.x || vSamplePos.y < VolumeMapDomainMin.y || vSamplePos.z < VolumeMapDomainMin.z ||
+        vSamplePos.x >= VolumeMapDomainMax.x || vSamplePos.y >= VolumeMapDomainMax.y || vSamplePos.z >= VolumeMapDomainMax.z)
+        return 0.0f;
+    
+    //realative weight
+    uint3 Cell3DIndex = getCell3Dindex(vSamplePos);
+    float3 SubDomainMin = VolumeMapDomainMin + Cell3DIndex * VolumeMapCellSize;
+    float3 SubDomainMax = SubDomainMin + VolumeMapCellSize;
+    float3 Dia = SubDomainMax - SubDomainMin;
+    float3 C0 = 2.0f / Dia;
+    float3 C1 = (SubDomainMax + SubDomainMin) / Dia;
+    float3 Pos = C0 * vSamplePos - C1;
+    
+    //realative node
+    uint nx = VolumeMapResolutionX;
+    uint ny = VolumeMapResolutionY;
+    uint nz = VolumeMapResolutionZ;
+    
+    uint nv = (VolumeMapResolutionX + 1) * (VolumeMapResolutionY + 1) * (VolumeMapResolutionZ + 1);
+    uint ne_x = (VolumeMapResolutionX + 0) * (VolumeMapResolutionY + 1) * (VolumeMapResolutionZ + 1);
+    uint ne_y = (VolumeMapResolutionX + 1) * (VolumeMapResolutionY + 0) * (VolumeMapResolutionZ + 1);
+    
+    float x = Pos.x;
+    float y = Pos.y;
+    float z = Pos.z;
+
+    float x2 = x * x;
+    float y2 = y * y;
+    float z2 = z * z;
+
+    float _1mx = 1.0f - x;
+    float _1my = 1.0f - y;
+    float _1mz = 1.0f - z;
+
+    float _1px = 1.0f + x;
+    float _1py = 1.0f + y;
+    float _1pz = 1.0f + z;
+
+    float _1m3x = 1.0f - 3.0f * x;
+    float _1m3y = 1.0f - 3.0f * y;
+    float _1m3z = 1.0f - 3.0f * z;
+
+    float _1p3x = 1.0f + 3.0f * x;
+    float _1p3y = 1.0f + 3.0f * y;
+    float _1p3z = 1.0f + 3.0f * z;
+
+    float _1mxt1my = _1mx * _1my;
+    float _1mxt1py = _1mx * _1py;
+    float _1pxt1my = _1px * _1my;
+    float _1pxt1py = _1px * _1py;
+
+    float _1mxt1mz = _1mx * _1mz;
+    float _1mxt1pz = _1mx * _1pz;
+    float _1pxt1mz = _1px * _1mz;
+    float _1pxt1pz = _1px * _1pz;
+
+    float _1myt1mz = _1my * _1mz;
+    float _1myt1pz = _1my * _1pz;
+    float _1pyt1mz = _1py * _1mz;
+    float _1pyt1pz = _1py * _1pz;
+
+    float _1mx2 = 1.0f - x2;
+    float _1my2 = 1.0f - y2;
+    float _1mz2 = 1.0f - z2;
+    
+    float _9t3x2py2pz2m19 = 9.0f * (3.0f * x2 + y2 + z2) - 19.0f;
+    float _9tx2p3y2pz2m19 = 9.0f * (x2 + 3.0f * y2 + z2) - 19.0f;
+    float _9tx2py2p3z2m19 = 9.0f * (x2 + y2 + 3.0f * z2) - 19.0f;
+    float _18x = 18.0f * x;
+    float _18y = 18.0f * y;
+    float _18z = 18.0f * z;
+
+    float _3m9x2 = 3.0f - 9.0f * x2;
+    float _3m9y2 = 3.0f - 9.0f * y2;
+    float _3m9z2 = 3.0f - 9.0f * z2;
+
+    float _2x = 2.0f * x;
+    float _2y = 2.0f * y;
+    float _2z = 2.0f * z;
+
+    float _18xm9t3x2py2pz2m19 = _18x - _9t3x2py2pz2m19;
+    float _18xp9t3x2py2pz2m19 = _18x + _9t3x2py2pz2m19;
+    float _18ym9tx2p3y2pz2m19 = _18y - _9tx2p3y2pz2m19;
+    float _18yp9tx2p3y2pz2m19 = _18y + _9tx2p3y2pz2m19;
+    float _18zm9tx2py2p3z2m19 = _18z - _9tx2py2p3z2m19;
+    float _18zp9tx2py2p3z2m19 = _18z + _9tx2py2p3z2m19;
+    
+    float fac = 1.0f / 64.0f * (9.0f * (x2 + y2 + z2) - 19.0f);
+    
+    uint NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x;
+    float NodeValue = vCubicMap[NodeIndex];
+    float NodeWeight = fac * _1mxt1my * _1mz;
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1my * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1py * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1py * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1my * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1my * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1py * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1py * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    fac = 9.0f / 64.0f * _1mx2;
+    float fact1m3x = fac * _1m3x;
+    float fact1p3x = fac * _1p3x;
+    uint Offset = nv;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * Cell3DIndex.z + nx * Cell3DIndex.y + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1myt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1myt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * (Cell3DIndex.z + 1) + nx * Cell3DIndex.y + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1myt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1myt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * Cell3DIndex.z + nx * (Cell3DIndex.y + 1) + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1pyt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1pyt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * (Cell3DIndex.z + 1) + nx * (Cell3DIndex.y + 1) + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1pyt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1pyt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+
+    fac = 9.0f / 64.0f * _1my2;
+    float fact1m3y = fac * _1m3y;
+    float fact1p3y = fac * _1p3y;
+    Offset += 2 * ne_x;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * Cell3DIndex.x + ny * Cell3DIndex.z + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1mxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1mxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * (Cell3DIndex.x + 1) + ny * Cell3DIndex.z + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1pxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1pxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * Cell3DIndex.x + ny * (Cell3DIndex.z + 1) + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1mxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1mxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * (Cell3DIndex.x + 1) + ny * (Cell3DIndex.z + 1) + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1pxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1pxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+
+    fac = 9.0f / 64.0f * _1mz2;
+    float fact1m3z = fac * _1m3z;
+    float fact1p3z = fac * _1p3z;
+    Offset += 2 * ne_y;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * Cell3DIndex.y + nz * Cell3DIndex.x + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1mxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1mxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * (Cell3DIndex.y + 1) + nz * Cell3DIndex.x + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1mxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1mxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * Cell3DIndex.y + nz * (Cell3DIndex.x + 1) + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1pxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1pxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * (Cell3DIndex.y + 1) + nz * (Cell3DIndex.x + 1) + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1pxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1pxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult += NodeValue * NodeWeight;
+    
+    return InterpolateResult;
+}
+
+float4 interpolateGradAndScalar(RWStructuredBuffer<float> vCubicMap, float3 vSamplePos)
+{
+    float4 InterpolateResult = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    float3 VolumeMapDomainMax = VolumeMapDomainMin + float3(VolumeMapResolutionX, VolumeMapResolutionY, VolumeMapResolutionZ) * VolumeMapCellSize;
+    if (vSamplePos.x < VolumeMapDomainMin.x || vSamplePos.y < VolumeMapDomainMin.y || vSamplePos.z < VolumeMapDomainMin.z ||
+        vSamplePos.x >= VolumeMapDomainMax.x || vSamplePos.y >= VolumeMapDomainMax.y || vSamplePos.z >= VolumeMapDomainMax.z)
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    //realative weight
+    uint3 Cell3DIndex = getCell3Dindex(vSamplePos);
+    float3 SubDomainMin = VolumeMapDomainMin + Cell3DIndex * VolumeMapCellSize;
+    float3 SubDomainMax = SubDomainMin + VolumeMapCellSize;
+    float3 Dia = SubDomainMax - SubDomainMin;
+    float3 C0 = 2.0f / Dia;
+    float3 C1 = (SubDomainMax + SubDomainMin) / Dia;
+    float3 Pos = C0 * vSamplePos - C1;
+    
+    //realative node
+    uint nx = VolumeMapResolutionX;
+    uint ny = VolumeMapResolutionY;
+    uint nz = VolumeMapResolutionZ;
+    
+    uint nv = (VolumeMapResolutionX + 1) * (VolumeMapResolutionY + 1) * (VolumeMapResolutionZ + 1);
+    uint ne_x = (VolumeMapResolutionX + 0) * (VolumeMapResolutionY + 1) * (VolumeMapResolutionZ + 1);
+    uint ne_y = (VolumeMapResolutionX + 1) * (VolumeMapResolutionY + 0) * (VolumeMapResolutionZ + 1);
+    
+    float x = Pos.x;
+    float y = Pos.y;
+    float z = Pos.z;
+
+    float x2 = x * x;
+    float y2 = y * y;
+    float z2 = z * z;
+
+    float _1mx = 1.0f - x;
+    float _1my = 1.0f - y;
+    float _1mz = 1.0f - z;
+
+    float _1px = 1.0f + x;
+    float _1py = 1.0f + y;
+    float _1pz = 1.0f + z;
+
+    float _1m3x = 1.0f - 3.0f * x;
+    float _1m3y = 1.0f - 3.0f * y;
+    float _1m3z = 1.0f - 3.0f * z;
+
+    float _1p3x = 1.0f + 3.0f * x;
+    float _1p3y = 1.0f + 3.0f * y;
+    float _1p3z = 1.0f + 3.0f * z;
+
+    float _1mxt1my = _1mx * _1my;
+    float _1mxt1py = _1mx * _1py;
+    float _1pxt1my = _1px * _1my;
+    float _1pxt1py = _1px * _1py;
+
+    float _1mxt1mz = _1mx * _1mz;
+    float _1mxt1pz = _1mx * _1pz;
+    float _1pxt1mz = _1px * _1mz;
+    float _1pxt1pz = _1px * _1pz;
+
+    float _1myt1mz = _1my * _1mz;
+    float _1myt1pz = _1my * _1pz;
+    float _1pyt1mz = _1py * _1mz;
+    float _1pyt1pz = _1py * _1pz;
+
+    float _1mx2 = 1.0f - x2;
+    float _1my2 = 1.0f - y2;
+    float _1mz2 = 1.0f - z2;
+    
+    float _9t3x2py2pz2m19 = 9.0f * (3.0f * x2 + y2 + z2) - 19.0f;
+    float _9tx2p3y2pz2m19 = 9.0f * (x2 + 3.0f * y2 + z2) - 19.0f;
+    float _9tx2py2p3z2m19 = 9.0f * (x2 + y2 + 3.0f * z2) - 19.0f;
+    float _18x = 18.0f * x;
+    float _18y = 18.0f * y;
+    float _18z = 18.0f * z;
+
+    float _3m9x2 = 3.0f - 9.0f * x2;
+    float _3m9y2 = 3.0f - 9.0f * y2;
+    float _3m9z2 = 3.0f - 9.0f * z2;
+
+    float _2x = 2.0f * x;
+    float _2y = 2.0f * y;
+    float _2z = 2.0f * z;
+
+    float _18xm9t3x2py2pz2m19 = _18x - _9t3x2py2pz2m19;
+    float _18xp9t3x2py2pz2m19 = _18x + _9t3x2py2pz2m19;
+    float _18ym9tx2p3y2pz2m19 = _18y - _9tx2p3y2pz2m19;
+    float _18yp9tx2p3y2pz2m19 = _18y + _9tx2p3y2pz2m19;
+    float _18zm9tx2py2p3z2m19 = _18z - _9tx2py2p3z2m19;
+    float _18zp9tx2py2p3z2m19 = _18z + _9tx2py2p3z2m19;
+    
+    float fac = 1.0f / 64.0f * (9.0f * (x2 + y2 + z2) - 19.0f);
+    
+    uint NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x;
+    float NodeValue = vCubicMap[NodeIndex];
+    float NodeWeight = fac * _1mxt1my * _1mz;
+    InterpolateResult.w += NodeValue * NodeWeight;
+    float3 NodeGradWeight = float3(0, 0, 0);
+    NodeGradWeight.x = _18xm9t3x2py2pz2m19 * _1myt1mz / 64.0f;
+    NodeGradWeight.y = _1mxt1mz * _18ym9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1mxt1my * _18zm9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1my * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xp9t3x2py2pz2m19 * _1myt1mz / 64.0f;
+    NodeGradWeight.y = _1pxt1mz * _18ym9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1pxt1my * _18zm9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1py * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xm9t3x2py2pz2m19 * _1pyt1mz / 64.0f;
+    NodeGradWeight.y = _1mxt1mz * _18yp9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1mxt1py * _18zm9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+
+    NodeIndex = (nx + 1) * (ny + 1) * Cell3DIndex.z + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1py * _1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xp9t3x2py2pz2m19 * _1pyt1mz / 64.0f;
+    NodeGradWeight.y = _1pxt1mz * _18yp9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1pxt1py * _18zm9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1my * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xm9t3x2py2pz2m19 * _1myt1pz / 64.0f;
+    NodeGradWeight.y = _1mxt1pz * _18ym9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1mxt1my * _18zp9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * Cell3DIndex.y + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1my * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xp9t3x2py2pz2m19 * _1myt1pz / 64.0f;
+    NodeGradWeight.y = _1pxt1pz * _18ym9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1pxt1my * _18zp9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x;
+    NodeWeight = fac * _1mxt1py * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xm9t3x2py2pz2m19 * _1pyt1pz / 64.0f;
+    NodeGradWeight.y = _1mxt1pz * _18yp9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1mxt1py * _18zp9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = (nx + 1) * (ny + 1) * (Cell3DIndex.z + 1) + (nx + 1) * (Cell3DIndex.y + 1) + Cell3DIndex.x + 1;
+    NodeWeight = fac * _1pxt1py * _1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _18xp9t3x2py2pz2m19 * _1pyt1pz / 64.0f;
+    NodeGradWeight.y = _1pxt1pz * _18yp9tx2p3y2pz2m19 / 64.0f;
+    NodeGradWeight.z = _1pxt1py * _18zp9tx2py2p3z2m19 / 64.0f;
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    fac = 9.0f / 64.0f * _1mx2;
+    float fact1m3x = fac * _1m3x;
+    float fact1p3x = fac * _1p3x;
+    uint Offset = nv;
+    float _m3m9x2m2x = -_3m9x2 - _2x;
+    float _p3m9x2m2x = _3m9x2 - _2x;
+    float _1mx2t1m3x = _1mx2 * _1m3x;
+    float _1mx2t1p3x = _1mx2 * _1p3x;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * Cell3DIndex.z + nx * Cell3DIndex.y + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1myt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _m3m9x2m2x * _1myt1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mx2t1m3x * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1mx2t1m3x * _1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1myt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _p3m9x2m2x * _1myt1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mx2t1p3x * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1mx2t1p3x * _1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * (Cell3DIndex.z + 1) + nx * Cell3DIndex.y + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1myt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _m3m9x2m2x * _1myt1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mx2t1m3x * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1mx2t1m3x * _1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1myt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _p3m9x2m2x * _1myt1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mx2t1p3x * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1mx2t1p3x * _1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * Cell3DIndex.z + nx * (Cell3DIndex.y + 1) + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1pyt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _m3m9x2m2x * _1pyt1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mx2t1m3x * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1mx2t1m3x * _1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1pyt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _p3m9x2m2x * _1pyt1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mx2t1p3x * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1mx2t1p3x * _1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nx * (ny + 1) * (Cell3DIndex.z + 1) + nx * (Cell3DIndex.y + 1) + Cell3DIndex.x);
+    NodeWeight = fact1m3x * _1pyt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _m3m9x2m2x * _1pyt1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mx2t1m3x * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1mx2t1m3x * _1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3x * _1pyt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _p3m9x2m2x * _1pyt1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mx2t1p3x * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1mx2t1p3x * _1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+
+    fac = 9.0f / 64.0f * _1my2;
+    float fact1m3y = fac * _1m3y;
+    float fact1p3y = fac * _1p3y;
+    Offset += 2 * ne_x;
+    float _m3m9y2m2y = -_3m9y2 - _2y;
+    float _p3m9y2m2y = _3m9y2 - _2y;
+    float _1my2t1m3y = _1my2 * _1m3y;
+    float _1my2t1p3y = _1my2 * _1p3y;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * Cell3DIndex.x + ny * Cell3DIndex.z + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1mxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1my2t1m3y * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _m3m9y2m2y * _1mxt1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1my2t1m3y * _1mx * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1mxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1my2t1p3y * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _p3m9y2m2y * _1mxt1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1my2t1p3y * _1mx * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * (Cell3DIndex.x + 1) + ny * Cell3DIndex.z + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1pxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1my2t1m3y * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _m3m9y2m2y * _1pxt1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1my2t1m3y * _1px * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1pxt1mz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1my2t1p3y * _1mz * (9.0f / 64.0f);
+    NodeGradWeight.y = _p3m9y2m2y * _1pxt1mz * (9.0f / 64.0f);
+    NodeGradWeight.z = -_1my2t1p3y * _1px * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * Cell3DIndex.x + ny * (Cell3DIndex.z + 1) + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1mxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1my2t1m3y * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _m3m9y2m2y * _1mxt1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1my2t1m3y * _1mx * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1mxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1my2t1p3y * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _p3m9y2m2y * _1mxt1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1my2t1p3y * _1mx * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (ny * (nz + 1) * (Cell3DIndex.x + 1) + ny * (Cell3DIndex.z + 1) + Cell3DIndex.y);
+    NodeWeight = fact1m3y * _1pxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1my2t1m3y * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _m3m9y2m2y * _1pxt1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1my2t1m3y * _1px * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3y * _1pxt1pz;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1my2t1p3y * _1pz * (9.0f / 64.0f);
+    NodeGradWeight.y = _p3m9y2m2y * _1pxt1pz * (9.0f / 64.0f);
+    NodeGradWeight.z = _1my2t1p3y * _1px * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+
+    fac = 9.0f / 64.0f * _1mz2;
+    float fact1m3z = fac * _1m3z;
+    float fact1p3z = fac * _1p3z;
+    Offset += 2 * ne_y;
+    float _m3m9z2m2z = -_3m9z2 - _2z;
+    float _p3m9z2m2z = _3m9z2 - _2z;
+    float _1mz2t1m3z = _1mz2 * _1m3z;
+    float _1mz2t1p3z = _1mz2 * _1p3z;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * Cell3DIndex.y + nz * Cell3DIndex.x + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1mxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1mz2t1m3z * _1my * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mz2t1m3z * _1mx * (9.0f / 64.0f);
+    NodeGradWeight.z = _m3m9z2m2z * _1mxt1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1mxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1mz2t1p3z * _1my * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mz2t1p3z * _1mx * (9.0f / 64.0f);
+    NodeGradWeight.z = _p3m9z2m2z * _1mxt1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * (Cell3DIndex.y + 1) + nz * Cell3DIndex.x + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1mxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1mz2t1m3z * _1py * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mz2t1m3z * _1mx * (9.0f / 64.0f);
+    NodeGradWeight.z = _m3m9z2m2z * _1mxt1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1mxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = -_1mz2t1p3z * _1py * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mz2t1p3z * _1mx * (9.0f / 64.0f);
+    NodeGradWeight.z = _p3m9z2m2z * _1mxt1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * Cell3DIndex.y + nz * (Cell3DIndex.x + 1) + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1pxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1mz2t1m3z * _1my * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mz2t1m3z * _1px * (9.0f / 64.0f);
+    NodeGradWeight.z = _m3m9z2m2z * _1pxt1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1pxt1my;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1mz2t1p3z * _1my * (9.0f / 64.0f);
+    NodeGradWeight.y = -_1mz2t1p3z * _1px * (9.0f / 64.0f);
+    NodeGradWeight.z = _p3m9z2m2z * _1pxt1my * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = Offset + 2 * (nz * (nx + 1) * (Cell3DIndex.y + 1) + nz * (Cell3DIndex.x + 1) + Cell3DIndex.z);
+    NodeWeight = fact1m3z * _1pxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1mz2t1m3z * _1py * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mz2t1m3z * _1px * (9.0f / 64.0f);
+    NodeGradWeight.z = _m3m9z2m2z * _1pxt1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    NodeIndex = NodeIndex + 1;
+    NodeWeight = fact1p3z * _1pxt1py;
+    NodeValue = vCubicMap[NodeIndex];
+    InterpolateResult.w += NodeValue * NodeWeight;
+    NodeGradWeight.x = _1mz2t1p3z * _1py * (9.0f / 64.0f);
+    NodeGradWeight.y = _1mz2t1p3z * _1px * (9.0f / 64.0f);
+    NodeGradWeight.z = _p3m9z2m2z * _1pxt1py * (9.0f / 64.0f);
+    InterpolateResult.xyz += NodeValue * NodeGradWeight;
+    
+    return InterpolateResult;
+}
+
+float integrateVolumeMapGauss16(float3 vCenterPos)
+{
+    float3 vIntegrateDomainMin = float3(-SearchRadius, -SearchRadius, -SearchRadius);
+    float3 vIntegrateDomainMax = float3(SearchRadius, SearchRadius, SearchRadius);
+    
+    float3 C0 = 0.5f * (vIntegrateDomainMax - vIntegrateDomainMin);
+    float3 C1 = 0.5f * (vIntegrateDomainMax + vIntegrateDomainMin);
+
+    float Result = 0.0f;
+    float3 IntegratePointOffset = float3(0, 0, 0);
+    for (uint i = 0; i < 16; i++)
+    {
+        float Wi = gaussian_weights_1_30[i];
+        IntegratePointOffset.x = gaussian_abscissae_1_30[i];
+        for (uint j = 0; j < 16; j++)
+        {
+            float Wij = Wi * gaussian_weights_1_30[j];
+            IntegratePointOffset.y = gaussian_abscissae_1_30[j];
+            for (uint k = 0; k < 16; k++)
+            {
+                float Wijk = Wij * gaussian_weights_1_30[k];
+                IntegratePointOffset.z = gaussian_abscissae_1_30[k];
+                
+                float3 Offset = C0 * IntegratePointOffset + C1;
+                if (dot(Offset, Offset) > SearchRadius * SearchRadius)
+                {
+                    Result += 0.0f;
+                    continue;
+                }
+                else
+                {
+                    float3 SamplePos = vCenterPos + Offset;
+                    float InterpolateResult = interpolateScalar(SignedDistanceArray_RW, SamplePos);
+                    if (InterpolateResult <= 0.0f)
+                        Result += Wijk * 1.0f;
+                    else if (InterpolateResult <= 1.0f / SearchRadius && InterpolateResult > 0.0f)
+                        Result += Wijk * computeCubicKernelW(InterpolateResult, SearchRadius) / CubicZero;
+                    else
+                        Result += 0.0f;
+                }
+            }
+        }
+    }
+    return Result *= (C0.x * C0.y * C0.z);
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void generateSignedDistanceMap(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= VolumeMapTotalNodeCount)
+        return;
+    
+    float3 NodePos = indexToNodePosition(i);
+    
+    float3 UVW = (NodePos - SDFDomainMin) / SDFCellSize / float3((float) SDFResolutionX, (float) SDFResolutionY, (float) SDFResolutionZ);
+    float Dist = SignedDistanceTexture_R.SampleLevel(Sampler_Trilinear_Clamp, UVW, 0);
+    
+    SignedDistanceArray_RW[i] = Dist;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void generateVolumeMap(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= VolumeMapTotalNodeCount)
+        return;
+    
+    float3 NodePos = indexToNodePosition(i);
+    
+    float3 UVW = (NodePos - SDFDomainMin) / SDFCellSize / float3((float) SDFResolutionX, (float) SDFResolutionY, (float) SDFResolutionZ);
+    float Dist = SignedDistanceTexture_R.SampleLevel(Sampler_Trilinear_Clamp, UVW, 0);
+    
+    float VolumeData = 0.0f;
+    if (Dist > 2.0f * SearchRadius)
+        VolumeData = 0.0f;
+    else
+        VolumeData = 0.8 * integrateVolumeMapGauss16(NodePos);
+    
+    VolumeArray_RW[i] = VolumeData;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void queryCloestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    float3 CenterPos = TargetParticlePosition_RW[i];
+    
+    //query volume and closest point
+    float3 ObjectPos = mul(InvRotation, float4(CenterPos - Translate, 1.0f)).xyz;
+    float VolumeData = interpolateScalar(VolumeArray_RW, ObjectPos);
+    float4 NormalAndDist = interpolateGradAndScalar(SignedDistanceArray_RW, ObjectPos);
+    NormalAndDist.xyz = mul(Rotation, float4(normalize(NormalAndDist.xyz), 1.0f)).xyz;
+    float3 DisplacementVector = NormalAndDist.w * normalize(NormalAndDist.xyz);
+    float CurrDist = length(DisplacementVector);
+    if (NormalAndDist.w >= 0.0f)
+    {
+        if (VolumeData > 0 && length(NormalAndDist.xyz) > EPSILON && CurrDist < SearchRadius)
+        {
+            float OldDist = Distance_RW[i];
+            if (CurrDist < OldDist)
+            {
+                ClosestPoint_RW[i] = CenterPos - normalize(DisplacementVector) * max(CurrDist + 0.5f * ParticleRadius, 2.0f * ParticleRadius);
+                Volume_RW[i] = VolumeData;
+                Distance_RW[i] = NormalAndDist.w;
+                BoundaryVelocity_RW[i] = BoundaryVelocity;
+            }
+        }
+    }
+    else
+    {
+        Volume_RW[i] = 0.0f;
+        Distance_RW[i] = NormalAndDist.w;
+    }
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void clearClosestPointAndVolume(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= TargetParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+    
+    ClosestPoint_RW[i] = float3(FLT_MAX, FLT_MAX, FLT_MAX);
+    Distance_RW[i] = FLT_MAX;
+    Volume_RW[i] = 0.0f;
+}

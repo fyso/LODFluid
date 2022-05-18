@@ -1,0 +1,149 @@
+#include "../Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+#pragma kernel computeParticleThickOfCell
+#pragma kernel sampleShallowWaterBoundary
+
+float TimeStep;
+float BandWidth;
+float ParticleVolume;
+float UpperParticleThick;
+
+Texture2D<float> ExternHeight_R;
+RWTexture2D<float> ExternHeight_RW;
+Texture2D<float> HeightChange_R;
+
+Texture2D<float4> StateMap_R;
+RWTexture2D<float4> StateMap_RW;
+
+Texture2D<float2> VelocityMap_R;
+RWTexture2D<float2> VelocityMap_RW;
+
+float2 ShallowWaterMax;
+float2 ShallowWaterMin;
+uint ShallowWaterResX;
+uint ShallowWaterResY;
+float ShallowWaterCellLength;
+SamplerState Sampler_Trilinear_Clamp;
+
+StructuredBuffer<uint> ParticleIndirectArgment_R;
+
+StructuredBuffer<float> ParticleDensity_R;
+StructuredBuffer<float> ParticleCellIndex_R;
+
+StructuredBuffer<float3> ParticlePosition_R;
+RWStructuredBuffer<float3> ParticlePosition_RW;
+
+StructuredBuffer<float3> ParticleVelocity_R;
+RWStructuredBuffer<float3> ParticleVelocity_RW;
+
+RWStructuredBuffer<uint> ParticleFilter_RW;
+
+StructuredBuffer<uint> HashGridCellParticleCount_R;
+StructuredBuffer<uint> HashGridCellParticleOffset_R;
+
+float3 HashGridMin;
+float HashGridCellLength;
+uint HashGridResolutionX;
+uint HashGridResolutionY;
+uint HashGridResolutionZ;
+
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void computeParticleThickOfCell(uint3 id : SV_DispatchThreadID)
+{
+    float4 CurrState = StateMap_R[id.xy];
+    uint CellHeightIndex = (CurrState.r + CurrState.g - HashGridMin.y) / HashGridCellLength;
+    int2 ShallowWaterRes = int2(ShallowWaterResX, ShallowWaterResY);
+    int3 HashGridRes = int3(HashGridResolutionX, HashGridResolutionY, HashGridResolutionZ);
+    float3 HashGridMax = HashGridMin + HashGridRes * HashGridCellLength;
+    
+    float2 CenterCellPosXZ = id.xy * ShallowWaterCellLength + ShallowWaterMin;
+    
+    float Height = 0.0f;
+    for (int x = -2; x <= 2; x++)
+    {
+        for (int y = -2; y <= 2; y++)
+        {
+            int2 AdjCellIndex = id.xy + int2(x, y);
+            if (any(AdjCellIndex < 0) || any(AdjCellIndex >= ShallowWaterRes))
+                continue;
+            
+            float2 AdjCellPos = AdjCellIndex * ShallowWaterCellLength + ShallowWaterMin;
+            if (any(AdjCellPos < HashGridMin.xz) || any(AdjCellIndex >= HashGridMax.xz))
+                continue;
+            
+            uint2 AdjHashCellIndex = (AdjCellPos - HashGridMin.xz) / HashGridCellLength;
+            uint IterationCount = HashGridResolutionY - CellHeightIndex;
+            uint ContinueEmpty = 0;
+            for (uint i = 0; i < IterationCount; i++)
+            {
+                uint3 UpperCellIndex = uint3(AdjHashCellIndex.x, CellHeightIndex + i, AdjHashCellIndex.y);
+                float3 UpperCellCenterPosition = UpperCellIndex * ShallowWaterCellLength + float3(ShallowWaterCellLength, ShallowWaterCellLength, ShallowWaterCellLength) * 0.5f + float3(ShallowWaterMin.x, 0.0f, ShallowWaterMin.y);
+                uint CellLinerIndex = computeMorton3D(UpperCellIndex);
+        
+                uint CellParticleCount = HashGridCellParticleCount_R[CellLinerIndex];
+                uint CellParticleOffset = HashGridCellParticleOffset_R[CellLinerIndex];
+                float Density = 0.0f;
+                for (int c = 0; c < CellParticleCount; c++)
+                {
+                    float3 Pos = ParticlePosition_R[CellParticleOffset + c];
+                    float Distance = length(UpperCellCenterPosition - Pos);
+                    if (Distance > (ShallowWaterCellLength * 1.5f) * sqrt(2.0f) + 1e-6f)
+                        continue;
+                    Density += ParticleVolume * computeCubicKernelW(Distance, ShallowWaterCellLength) * computeQuadraticSplineWeight(length(UpperCellCenterPosition.xz - CenterCellPosXZ));
+                }
+                if (Density <= 0.0f)
+                    ContinueEmpty++;
+                else
+                    ContinueEmpty = 0;
+                
+                if(ContinueEmpty > 5)
+                    break;
+                
+                Height += Density * 10.0f;
+            }
+        }
+    }
+    ExternHeight_RW[id.xy] = Height;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void sampleShallowWaterBoundary(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+        
+    float3 CurrPos = ParticlePosition_RW[i];
+    float3 CurrVel = ParticleVelocity_RW[i];
+    
+    if (any(CurrPos.xz < ShallowWaterMin) || any(CurrPos.xz >= ShallowWaterMax))
+        return;
+    
+    uint2 Index2D = (CurrPos.xz - ShallowWaterMin) / ShallowWaterCellLength;
+    float4 ShallowWaterState = StateMap_RW[Index2D];
+    
+    float HybridFactor = 1.0f - min(max(0, CurrPos.y - (ShallowWaterState.r + ShallowWaterState.g)), BandWidth) / BandWidth;
+    
+    float2 ShallowWaterVel = VelocityMap_RW[Index2D];
+    float HeightVel = HeightChange_R[Index2D] / TimeStep;
+    
+    //CurrPos.y = CurrPos.y * (1.0f - HybridFactor) + (ShallowWaterState.r + ShallowWaterState.g) * HybridFactor;
+    ParticlePosition_RW[i] = CurrPos;
+    ParticleVelocity_RW[i] = CurrVel * (1.0f - HybridFactor) + float3(0, 0, 0) * HybridFactor;
+}
+
+[numthreads(SHALLOW_THREAD_NUM, SHALLOW_THREAD_NUM, 1)]
+void generateParticleOnSurface(uint3 id : SV_DispatchThreadID)
+{
+    float ExternHeight = ExternHeight_R[id.xy];
+    float NeedAddParticleThick = UpperParticleThick - ExternHeight;
+}
+
+[numthreads(SPH_THREAD_NUM, 1, 1)]
+void deleteParticleUnderSurface(uint ThreadIdx : SV_GroupIndex, uint GroupIdx : SV_GroupID)
+{
+    uint i = ThreadIdx + GroupIdx * SPH_THREAD_NUM;
+    if (i >= ParticleIndirectArgment_R[ParticleCountArgumentOffset])
+        return;
+}

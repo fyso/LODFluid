@@ -58,3 +58,6 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+/Assets/Large Scale Fluid Rendering/Resources/Models
+/Assets/Large Scale Fluid Rendering/Resources/OfflineSPHData
+/Assets/Large Scale Fluid Rendering/Resources/Skyboxs
